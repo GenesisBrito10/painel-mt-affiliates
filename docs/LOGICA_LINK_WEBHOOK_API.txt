@@ -1,0 +1,622 @@
+diff --git a//Users/teixeira/Desktop/Automagroup/empresas/vexxa/dashboard-afiliados/LOGICA_LINK_WEBHOOK_API.txt b//Users/teixeira/Desktop/Automagroup/empresas/vexxa/dashboard-afiliados/LOGICA_LINK_WEBHOOK_API.txt
+@@ -438,2 +438,620 @@
+ 
++A pagina Webhooks de Links
++--------------------------
++Arquivo:
++frontend/app/pages/link-webhooks.vue
++
++Essa pagina e a interface onde admin ou lead configura para onde os webhooks de
++link serao enviados.
++
++Ela nao cria solicitacao de link. Ela so configura o recebimento dos eventos
++finais:
++
++- link_request.approved
++- link_request.rejected
++
++Ou seja:
++
++1. A Affiliate API cria a solicitacao usando usuario fake.
++2. O admin/lead/pool aprova ou rejeita no fluxo normal.
++3. O backend dispara o LinkWebhookService.
++4. A configuracao feita na pagina /link-webhooks define para qual URL esse
++   evento vai.
++
++
++Quem pode acessar a pagina
++--------------------------
++No frontend, a pagina tem:
++
++const canAccessLinkWebhooks = computed(() =>
++  user.value?.role === 'admin' || !!user.value?.hasReferrals,
++)
++
++Entao a UI mostra conteudo somente para:
++
++- admin;
++- afiliado que tem rede, identificado por hasReferrals.
++
++Se nao tiver acesso, renderiza um card:
++"Acesso restrito. Disponivel para administradores e afiliados com rede (lead)."
++
++No backend, a protecao real fica em:
++backend-vexxa/src/modules/link-webhook/infrastructure/admin-or-head-affiliate.guard.ts
++
++Guard:
++AdminOrHeadAffiliateGuard
++
++Ele permite:
++
++1. ADMIN ou SUPERADMIN:
++   acesso liberado.
++
++2. AFFILIATE:
++   so libera se tiver pelo menos um usuario com referredById = user.sub.
++
++Consulta:
++
++this.prisma.user.count({
++  where: { referredById: user.sub, deletedAt: null },
++})
++
++Se o afiliado nao tiver rede, retorna Forbidden:
++"Somente administradores ou afiliados com rede"
++
++Importante:
++O frontend esconder a pagina e so UX. A protecao de verdade e esse guard no
++backend.
++
++
++Como a pagina decide escopo global ou rede
++------------------------------------------
++Na pagina:
++
++const isNetworkScope = computed(() =>
++  settings.value?.scope === 'network' ||
++  (user.value?.role !== 'admin' && !!user.value?.hasReferrals),
++)
++
++Na pratica:
++
++- admin configura escopo global;
++- lead/afiliado com rede configura escopo da propria rede.
++
++Isso vem do backend em LinkWebhookSettingsService:
++
++ownerIdForActor(actor)
++
++Regra:
++
++- se role ADMIN ou SUPERADMIN -> ownerUserId = null;
++- caso contrario -> ownerUserId = actor.sub.
++
++Quando ownerUserId e null:
++scope = "global"
++
++Quando ownerUserId tem id de usuario:
++scope = "network"
++
++
++O que tem na tela /link-webhooks
++--------------------------------
++Arquivo:
++frontend/app/pages/link-webhooks.vue
++
++A tela tem estes blocos:
++
++1. Header
++   Titulo: "Webhooks de Links"
++   Subtitulo muda conforme escopo:
++
++   - network:
++     "Sua configuracao exclusiva. Recebe eventos dos seus links e dos
++      afiliados da sua rede."
++
++   - global:
++     "Configuracao global. Recebe todos os eventos de links da plataforma."
++
++2. Status geral
++   Campo:
++   settings.enabled
++
++   Controla se o webhook esta ativo ou desativado.
++
++3. Destino
++   Campo:
++   settings.webhookUrl
++
++   URL que vai receber os POSTs.
++
++4. Segredo HMAC-SHA256
++   Campo de tela:
++   secretInput
++
++   Se preencher, salva em webhookSecret.
++   Se deixar vazio e ja existir segredo, o backend mantem o segredo atual.
++
++   A tela mostra placeholder:
++   - se ja tem segredo: "•••••••• (deixe vazio para manter)"
++   - se nao tem: "Opcional — header X-Vallex-Signature"
++
++5. Toggle "Link aprovado"
++   Campo:
++   settings.notifyOnApproved
++
++   Controla evento:
++   link_request.approved
++
++6. Toggle "Link rejeitado"
++   Campo:
++   settings.notifyOnRejected
++
++   Controla evento:
++   link_request.rejected
++
++7. Botao "Salvar configuracao"
++   Chama save()
++   save() monta body e chama lw.saveSettings(body)
++
++8. Botao "Enviar teste"
++   Chama runTest()
++   runTest() chama lw.testWebhook()
++   Depois recarrega historico com loadDeliveries(1)
++
++9. Exemplo de payload
++   Mostra um JSON estatico para o usuario saber o formato.
++
++10. Historico de entregas
++    Lista entregas recentes em cards no mobile e tabela no desktop.
++
++
++Composable da pagina
++--------------------
++Arquivo:
++frontend/app/composables/useLinkWebhooks.ts
++
++Esse composable centraliza as chamadas HTTP usadas pela pagina.
++
++Interfaces:
++
++LinkWebhookSettings:
++
++- id
++- ownerUserId
++- scope: "global" | "network"
++- enabled
++- webhookUrl
++- webhookSecret
++- hasSecret
++- notifyOnApproved
++- notifyOnRejected
++- updatedAt
++
++LinkWebhookDelivery:
++
++- id
++- linkRequestId
++- event
++- origin
++- status: PENDING | SUCCESS | FAILED
++- httpStatus
++- errorMessage
++- attempts
++- deliveredAt
++- createdAt
++- requesterName
++- requesterEmail
++
++Funcoes:
++
++1. fetchSettings()
++   GET /v1/admin/link-webhooks/settings
++
++2. saveSettings(payload)
++   PUT /v1/admin/link-webhooks/settings
++
++3. fetchDeliveries(page, limit)
++   GET /v1/admin/link-webhooks/deliveries?page=1&limit=20
++
++4. testWebhook()
++   POST /v1/admin/link-webhooks/test
++
++Todas usam authHeaders() do useAuth(), ou seja, dependem do login normal do
++painel, nao do token da Affiliate API.
++
++
++Endpoints backend da pagina
++---------------------------
++Arquivo:
++backend-vexxa/src/modules/link-webhook/infrastructure/link-webhook.controller.ts
++
++Controller:
++LinkWebhookController
++
++Base:
++/v1/admin/link-webhooks
++
++Guards:
++
++@UseGuards(JwtAuthGuard, AdminOrHeadAffiliateGuard)
++
++Endpoints:
++
++1. GET /v1/admin/link-webhooks/settings
++
++   Retorna a configuracao do contexto atual:
++
++   - admin/superadmin -> configuracao global;
++   - lead/afiliado com rede -> configuracao daquela rede.
++
++   Chama:
++   this.settings.getSettingsForActor(user)
++
++2. PUT /v1/admin/link-webhooks/settings
++
++   Atualiza:
++
++   - enabled
++   - webhookUrl
++   - webhookSecret
++   - notifyOnApproved
++   - notifyOnRejected
++
++   Chama:
++   this.settings.updateSettings(user, dto)
++
++3. GET /v1/admin/link-webhooks/deliveries
++
++   Lista historico de entregas.
++
++   Admin ve entregas globais/todas conforme filtro do service.
++   Lead ve entregas do ownerUserId dele.
++
++   Chama:
++   this.webhook.listDeliveries(user, query)
++
++4. POST /v1/admin/link-webhooks/test
++
++   Envia payload fake de teste para a URL configurada.
++
++   Chama:
++   this.webhook.sendTestWebhook(user)
++
++
++DTOs do backend da pagina
++-------------------------
++Arquivo:
++backend-vexxa/src/modules/link-webhook/application/dto/link-webhook.dto.ts
++
++UpdateLinkWebhookSettingsDto:
++
++- enabled?: boolean
++- webhookUrl?: string
++  - aceita URL;
++  - max 500 chars;
++  - se for string vazia, passa pela validacao para permitir limpar.
++- webhookSecret?: string
++  - max 256 chars.
++- notifyOnApproved?: boolean
++- notifyOnRejected?: boolean
++
++ListLinkWebhookDeliveriesDto:
++
++- page?: number, default 1
++- limit?: number, default 20
++
++
++Service de configuracao
++-----------------------
++Arquivo:
++backend-vexxa/src/modules/link-webhook/application/link-webhook-settings.service.ts
++
++Responsabilidades:
++
++1. Descobrir ownerUserId pelo actor logado:
++
++   - admin/superadmin => ownerUserId null
++   - lead/afiliado => ownerUserId = actor.sub
++
++2. Garantir que sempre existe uma linha de configuracao:
++
++   ensureSettingsForOwner(ownerUserId)
++
++   Se nao existir, cria:
++
++   this.prisma.linkWebhookSettings.create({
++     data: { ownerUserId },
++   })
++
++3. Retornar configuracao sem expor segredo real:
++
++   webhookSecret retorna:
++   - "••••••••" se existe segredo;
++   - "" se nao existe.
++
++   hasSecret retorna boolean real.
++
++4. Atualizar configuracao:
++
++   - trim em webhookUrl;
++   - trim em webhookSecret;
++   - atualiza toggles quando enviados.
++
++5. Listar configs habilitadas com URL:
++
++   listEnabledWithUrl()
++
++   Usado pelo dispatch do webhook para descobrir alvos.
++
++   Filtro:
++
++   enabled = true
++   webhookUrl != ""
++
++
++Models Prisma usados pelo webhook
++---------------------------------
++Arquivo:
++backend-vexxa/prisma/schema.prisma
++
++Enum:
++
++LinkWebhookDeliveryStatus:
++
++- PENDING
++- SUCCESS
++- FAILED
++
++Model:
++LinkWebhookSettings
++
++Campos:
++
++- id
++- ownerUserId
++  - null = config global/admin
++  - preenchido = config do lead/rede
++- enabled
++- webhookUrl
++- webhookSecret
++- notifyOnApproved
++- notifyOnRejected
++- createdAt
++- updatedAt
++
++Detalhe importante:
++ownerUserId e unique.
++
++Isso significa que cada owner tem no maximo uma configuracao.
++
++Model:
++LinkWebhookDelivery
++
++Campos:
++
++- id
++- ownerUserId
++  - quem recebeu a entrega;
++  - null = entrega global/admin.
++- linkRequestId
++- event
++  - link_request.approved
++  - link_request.rejected
++- origin
++  - ADMIN_APPROVE
++  - ADMIN_REJECT
++  - LEADER_APPROVE
++  - etc.
++- idempotencyKey unique
++- payload Json
++- status
++- httpStatus
++- responseBody
++- errorMessage
++- attempts
++- deliveredAt
++- createdAt
++
++Essa tabela e o historico exibido na pagina.
++
++
++Eventos e origens
++-----------------
++Arquivo:
++backend-vexxa/src/modules/link-webhook/domain/types/link-webhook.types.ts
++
++Eventos:
++
++LINK_WEBHOOK_EVENTS.APPROVED = "link_request.approved"
++LINK_WEBHOOK_EVENTS.REJECTED = "link_request.rejected"
++
++Origens possiveis:
++
++- ADMIN_APPROVE
++- ADMIN_REJECT
++- LEADER_APPROVE
++- LEADER_REJECT
++- AUTO_ASSIGN
++- RULE_BLOCKED
++- DEPENDENCY_BLOCKED
++- BACKFILL_REJECT
++- TEST
++
++Essas origens ajudam o recebedor do webhook a entender por que o evento foi
++gerado.
++
++
++Entrega HTTP do webhook
++-----------------------
++Arquivo:
++backend-vexxa/src/modules/link-webhook/application/link-webhook.service.ts
++
++Metodo:
++postPayload(url, secret, payload)
++
++Headers enviados:
++
++- Content-Type: application/json
++- User-Agent: Vallex-LinkWebhook/1.0
++- X-Vallex-Event: payload.event
++- X-Vallex-Delivery-Id: payload.linkRequest.id
++
++Se houver secret configurado:
++
++- X-Vallex-Signature: sha256=<hmac>
++
++Assinatura:
++
++createHmac('sha256', secret).update(body).digest('hex')
++
++Timeout:
++
++LINK_WEBHOOK_HTTP_TIMEOUT_MS = 15000
++
++Se a resposta HTTP nao for 2xx, o backend trata como erro e salva FAILED.
++
++Se for 2xx:
++
++- status = SUCCESS
++- httpStatus = status retornado
++- responseBody = primeiros 4000 chars
++- attempts = 1
++- deliveredAt = now
++
++Se falhar:
++
++- status = FAILED
++- errorMessage = primeiros 2000 chars
++- attempts = 1
++
++
++Idempotencia da entrega
++-----------------------
++Arquivo:
++backend-vexxa/src/modules/link-webhook/application/link-webhook.service.ts
++
++Antes de postar, cria LinkWebhookDelivery com idempotencyKey:
++
++const ownerKey = settings.ownerUserId ?? 'global'
++const idempotencyKey =
++  `${ownerKey}:${linkRequestId}:${event}:${payload.linkRequest.fulfilledAt ?? payload.timestamp}`
++
++Esse campo e unique no banco.
++
++Se tentar criar uma entrega duplicada e o Prisma retornar P2002, o service
++simplesmente retorna e nao envia de novo.
++
++Objetivo:
++Evitar duplicidade de webhook para o mesmo owner/evento/request/momento.
++
++
++Payload de teste
++----------------
++Arquivo:
++backend-vexxa/src/modules/link-webhook/application/link-webhook.service.ts
++
++Metodo:
++sendTestWebhook(actor)
++
++Fluxo:
++
++1. Descobre ownerUserId pelo actor:
++   - admin = null
++   - lead = actor.sub
++
++2. Busca configuracao:
++   settingsService.getSettingsRow(ownerUserId)
++
++3. Se nao tiver webhookUrl:
++   retorna:
++   { success: false, error: 'Configure a URL do webhook antes de testar.' }
++
++4. Monta payload fixo com:
++   - event = link_request.approved
++   - origin = TEST
++   - linkRequest id fake
++   - user fake
++   - affiliateLink fake
++
++5. Envia com postPayload()
++
++6. Retorna:
++
++   sucesso:
++   { success: true, httpStatus }
++
++   falha:
++   { success: false, error }
++
++Observacao:
++O teste nao depende de uma LinkRequest real e nao cria entrega no historico pelo
++mesmo caminho de deliverToTarget. Ele serve para validar URL/secret/resposta.
++
++
++Historico de entregas na pagina
++-------------------------------
++Pagina:
++frontend/app/pages/link-webhooks.vue
++
++Funcao:
++loadDeliveries(p = 1)
++
++Chama:
++lw.fetchDeliveries(p, 15)
++
++Mostra:
++
++- evento formatado:
++  link_request.approved => "Link aprovado"
++  link_request.rejected => "Link rejeitado"
++
++- status formatado:
++  SUCCESS => "Entregue"
++  FAILED => "Falhou"
++  PENDING => "Pendente"
++
++- data;
++- requesterName;
++- requesterEmail;
++- httpStatus;
++- erro, quando houver.
++
++No mobile renderiza como cards.
++No desktop renderiza como tabela.
++
++
++Como a pagina se conecta com a logica do usuario fake
++-----------------------------------------------------
++A pagina nao sabe que o usuario foi criado pela API. Ela so configura para onde
++o resultado final vai.
++
++A ponte entre as duas partes e esta:
++
++1. Affiliate API cria ou reutiliza usuario fake:
++
++   fake.referredById = ownerUserId do token
++
++2. LinkRequest e criada para o fake:
++
++   linkRequest.userId = fake.id
++
++3. Quando aprova/rejeita, LinkWebhookService resolve targets:
++
++   resolveTargets(linkRequest.userId, event)
++
++4. Para cada configuracao de lead, ele verifica:
++
++   isRequestInOwnerNetwork(settings.ownerUserId, linkRequest.userId)
++
++5. Como fake.referredById aponta para o owner do token, essa verificacao retorna
++   true.
++
++6. O webhook configurado na pagina /link-webhooks do owner recebe o payload.
++
++Resumo:
++
++Affiliate API = cria pedido em nome do fake.
++Pagina Webhooks de Links = configura para onde o resultado do pedido vai.
++referredById = cola as duas coisas.
++
++
+ Testes adicionados

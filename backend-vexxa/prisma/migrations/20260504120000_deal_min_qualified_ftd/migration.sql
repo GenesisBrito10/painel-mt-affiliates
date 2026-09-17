@@ -1,0 +1,2 @@
+ALTER TABLE "deals"
+ADD COLUMN "minQualifiedFtd" INTEGER NOT NULL DEFAULT 15;

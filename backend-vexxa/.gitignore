@@ -1,0 +1,45 @@
+# compiled output
+/dist
+/node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+
+# Environment
+.env
+.env.test
+.env*.local
+
+# Prisma
+/prisma/data.db
+/prisma/data.db-journal
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Next / Nuxt / Others
+.vercel
+.output
+.next/
+out/
+build/
+
+pnpm-lock.yaml
+apply-cutover.mjs

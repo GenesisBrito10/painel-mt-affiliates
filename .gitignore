@@ -1,0 +1,37 @@
+# Dependencies
+**/node_modules
+.pnpm-store/
+vallexgroup
+# Build outputs
+.output
+dist
+.nuxt
+.next
+build
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database dumps
+*.dump
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# Local Git worktrees
+.worktrees/
+
+# Local SSL certs
+*.key
+*.pem

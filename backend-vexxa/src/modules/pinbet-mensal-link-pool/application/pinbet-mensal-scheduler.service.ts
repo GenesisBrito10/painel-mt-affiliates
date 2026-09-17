@@ -1,0 +1,197 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import { LinkRequestStatus } from '@prisma/client';
+import type Redis from 'ioredis';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { REDIS_CLIENT } from '../../shared/shared.module.js';
+import {
+  SheetRow,
+  PINBET_MENSAL_SCHEDULER_LOCK_KEY,
+  PINBET_MENSAL_SCHEDULER_LOCK_TTL_SECONDS,
+  PINBET_MENSAL_SLUG,
+} from '../domain/pinbet-mensal.types.js';
+import { LinkPoolAlertService } from '../../link-pool-alert/index.js';
+import { PinbetMensalAssignmentService } from './pinbet-mensal-assignment.service.js';
+import { PinbetMensalSheetService } from './pinbet-mensal-sheet.service.js';
+
+// INATIVO: enquanto não houver planilha (PINBET_MENSAL_SHEET_ID) e a casa estiver
+// active:false/requestEnabled:false, este cron não acha PENDING de pinbet-mensal
+// (nenhuma solicitação é criada) → no-op. Pronto para quando o Mensal for ativado.
+@Injectable()
+export class PinbetMensalSchedulerService {
+  private readonly logger = new Logger(PinbetMensalSchedulerService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly assignmentService: PinbetMensalAssignmentService,
+    private readonly sheetService: PinbetMensalSheetService,
+    private readonly linkPoolAlert: LinkPoolAlertService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+  ) {}
+
+  @Cron('*/1 * * * *', {
+    timeZone: 'America/Sao_Paulo',
+    name: 'pinbet-mensal-assign-backfill',
+  })
+  async backfillPending(): Promise<void> {
+    const lockToken = `scheduler:${process.pid}:${Date.now()}`;
+    const acquired = await this.acquireSchedulerLock(lockToken);
+    if (!acquired) {
+      this.logger.debug(
+        'Backfill skipped: scheduler lock held by another instance',
+      );
+      return;
+    }
+
+    try {
+      const house = await this.prisma.bettingHouse.findUnique({
+        where: { slug: PINBET_MENSAL_SLUG },
+        select: { active: true },
+      });
+      if (!house?.active) {
+        this.logger.debug('Backfill skipped: Pinbet Mensal is inactive');
+        return;
+      }
+      const assignmentPause = await this.prisma.setting.findUnique({
+        where: { key: 'pinbet_mensal_assignment_paused' },
+        select: { value: true },
+      });
+      if (assignmentPause?.value === 'true') {
+        this.logger.debug('Backfill skipped: Pinbet Mensal assignments are paused');
+        return;
+      }
+
+      const pending = await this.prisma.linkRequest.findMany({
+        where: {
+          bettingHouseSlug: PINBET_MENSAL_SLUG,
+          status: LinkRequestStatus.PENDING,
+          resolvedCpa: { not: null },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 50,
+        select: {
+          id: true,
+          userId: true,
+          resolvedCpa: true,
+          resolvedRevshare: true,
+        },
+      });
+
+      if (pending.length === 0) return;
+
+      let prefetchedRows: SheetRow[];
+      try {
+        prefetchedRows = await this.sheetService.readPool();
+      } catch (err) {
+        this.logger.error(
+          `Backfill aborted: sheet read failed: ${(err as Error).message}`,
+        );
+        return;
+      }
+
+      const freeCount = prefetchedRows.filter(
+        (r) => !r.status && !r.email && (r.code || r.link),
+      ).length;
+      await this.linkPoolAlert.checkPool(
+        PINBET_MENSAL_SLUG,
+        'Pinbet Mensal',
+        freeCount,
+      );
+
+      this.logger.log(
+        `Backfill: attempting to assign ${pending.length} pending Pinbet Mensal requests (pool rows=${prefetchedRows.length})`,
+      );
+
+      let assigned = 0;
+      let skipped = 0;
+      const reasonCounts: Record<string, number> = {};
+      const toMark: { rowIndex: number; email: string }[] = [];
+      for (let i = 0; i < pending.length; i++) {
+        const req = pending[i];
+        try {
+          const result = await this.assignmentService.tryAssign(
+            req.userId,
+            req.id,
+            {
+              prefetchedRows,
+              deferSheetWrite: true,
+              defaultCommission: {
+                cpa: req.resolvedCpa!.toNumber(),
+                revshare: req.resolvedRevshare?.toNumber() ?? 0,
+              },
+            },
+          );
+          if (result.assigned) {
+            assigned++;
+            toMark.push({ rowIndex: result.rowIndex, email: result.email });
+          } else {
+            skipped++;
+            reasonCounts[result.reason] =
+              (reasonCounts[result.reason] ?? 0) + 1;
+            this.logger.warn(
+              `Skipped request ${req.id} (user ${req.userId}): ${result.reason}`,
+            );
+            if (
+              result.reason === 'pool_empty' ||
+              result.reason === 'sheet_read_failed'
+            ) {
+              break;
+            }
+          }
+        } catch (err) {
+          this.logger.error(
+            `Backfill failed for request ${req.id}: ${(err as Error).message}`,
+          );
+          skipped++;
+        }
+      }
+      if (toMark.length > 0) {
+        try {
+          await this.sheetService.markRowsUsed(toMark);
+        } catch (err) {
+          this.logger.error(
+            `[INCONSISTÊNCIA] ${toMark.length} linhas atribuídas no DB mas batch sheet write falhou: ${(err as Error).message}`,
+          );
+        }
+      }
+      this.logger.log(
+        `Backfill complete: assigned=${assigned}, skipped=${skipped}, reasons=${JSON.stringify(reasonCounts)}`,
+      );
+    } finally {
+      await this.releaseSchedulerLock(lockToken).catch((err) => {
+        this.logger.warn(
+          `Failed to release scheduler lock: ${(err as Error).message}`,
+        );
+      });
+    }
+  }
+
+  private async acquireSchedulerLock(token: string): Promise<boolean> {
+    try {
+      const res = await this.redis.set(
+        PINBET_MENSAL_SCHEDULER_LOCK_KEY,
+        token,
+        'EX',
+        PINBET_MENSAL_SCHEDULER_LOCK_TTL_SECONDS,
+        'NX',
+      );
+      return res === 'OK';
+    } catch (err) {
+      this.logger.error(
+        `Redis SET NX failed (scheduler): ${(err as Error).message}`,
+      );
+      return false;
+    }
+  }
+
+  private async releaseSchedulerLock(token: string): Promise<void> {
+    const script = `
+      if redis.call("GET", KEYS[1]) == ARGV[1] then
+        return redis.call("DEL", KEYS[1])
+      else
+        return 0
+      end
+    `;
+    await this.redis.eval(script, 1, PINBET_MENSAL_SCHEDULER_LOCK_KEY, token);
+  }
+}

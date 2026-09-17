@@ -1,0 +1,2 @@
+ALTER TABLE "deals"
+ADD COLUMN "minAvgDepositPerFtd" DECIMAL(14,2) NOT NULL DEFAULT 80;

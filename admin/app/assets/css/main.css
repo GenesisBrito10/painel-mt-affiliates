@@ -1,0 +1,731 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* =====================================================================
+   Vallex Group — Admin design system tokens
+   Dark-first. Gold primary + violet accent on near-black surfaces.
+   ===================================================================== */
+
+@theme static {
+  --font-sans: 'Public Sans', system-ui, -apple-system, sans-serif;
+
+  /* Primary palette — anchored on Vallex gold */
+  --color-gold-50:  #FFFBEB;
+  --color-gold-100: #FEF3C7;
+  --color-gold-200: #FDE68A;
+  --color-gold-300: #FCD34D;
+  --color-gold-400: #FBBF24;
+  --color-gold-500: #f59e0b;
+  --color-gold-600: #d97706;
+  --color-gold-700: #b45309;
+  --color-gold-800: #92400e;
+  --color-gold-900: #78350f;
+  --color-gold-950: #451a03;
+
+  /* Purple palette (accent) — anchored on #7C3AED */
+  --color-vpurple-50:  #F5F3FF;
+  --color-vpurple-100: #EDE9FE;
+  --color-vpurple-200: #DDD6FE;
+  --color-vpurple-300: #C4B5FD;
+  --color-vpurple-400: #A78BFA;
+  --color-vpurple-500: #8B5CF6;
+  --color-vpurple-600: #7C3AED;
+  --color-vpurple-700: #6D28D9;
+  --color-vpurple-800: #5B21B6;
+  --color-vpurple-900: #4C1D95;
+  --color-vpurple-950: #2E1065;
+}
+
+/* Brand variables — used directly via var(--color-...) */
+:root {
+  /* Primary brand */
+  --color-gold: #f59e0b;
+  --color-gold-bright: #fbbf24;     /* brighter pop for active fills + CTAs */
+  --color-gold-soft: rgba(245, 158, 11, 0.12);
+
+  /* Secondary brand: purple (logo "X") */
+  --color-purple: #7C3AED;
+  --color-purple-bright: #8B5CF6;
+  --color-purple-soft: rgba(124, 58, 237, 0.15);
+  --color-purple-border: rgba(124, 58, 237, 0.30);
+  --color-gold-border: rgba(245, 158, 11, 0.32);
+
+  /* Surfaces */
+  --color-bg: #0A0A0E;
+  --color-surface: #111115;
+  --color-surface-2: #15151B;
+  --color-surface-elevated: #1A1A20;
+  --color-surface-hover: #16161D;
+  --color-border: #252530;
+  --color-border-subtle: #1F1F27;
+  --color-border-strong: #2F2F3C;
+
+  --color-text: #FFFFFF;
+  --color-text-secondary: #A8A8BD;
+  --color-text-muted: #555568;
+
+  /* Legacy admin sidebar vars (kept for back-compat with any leftover usage) */
+  --admin-sidebar: var(--color-surface);
+  --admin-sidebar-soft: var(--color-surface-elevated);
+
+  color-scheme: dark;
+}
+
+/* Force dark Vallex palette regardless of html.light/html.dark — design is dark-only. */
+:root,
+.light,
+.dark {
+  --ui-bg: var(--color-bg);
+  --ui-bg-muted: var(--color-surface);
+  --ui-bg-elevated: var(--color-surface-elevated);
+  --ui-bg-accented: #22222A;
+  --ui-bg-inverted: #FFFFFF;
+
+  --ui-border: var(--color-border);
+  --ui-border-muted: var(--color-border-subtle);
+  --ui-border-accented: #303040;
+  --ui-border-inverted: #FFFFFF;
+
+  --ui-text-dimmed: var(--color-text-muted);
+  --ui-text-muted: var(--color-text-secondary);
+  --ui-text-toned: #C9C9D6;
+  --ui-text: var(--color-text);
+  --ui-text-highlighted: var(--color-text);
+  --ui-text-inverted: #0A0A0E;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+body {
+  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+  font-feature-settings: "tnum";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Layout utilities ===== */
+
+.admin-page {
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .admin-page {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-page {
+    padding: 32px;
+  }
+}
+
+/* Page wrapper with responsive padding */
+.page-wrap {
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .page-wrap {
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-wrap {
+    padding: 28px;
+  }
+}
+
+/* Responsive visibility helpers */
+.hide-mobile  { display: none !important; }
+.hide-desktop { display: block !important; }
+
+@media (min-width: 768px) {
+  .hide-mobile  { display: revert !important; }
+  .hide-desktop { display: none !important; }
+}
+
+/* Table/Card switcher — pure CSS, no Tailwind dependency */
+/* .desk-only = tabela desktop (hidden em mobile, visível em md+)  */
+/* .mob-only  = cards mobile  (visível em mobile, hidden em md+)   */
+.desk-only { display: none !important; }
+.mob-only  { display: block !important; }
+
+@media (min-width: 768px) {
+  .desk-only { display: block !important; }
+  .mob-only  { display: none !important; }
+}
+
+/* Horizontal scroll wrapper for tables on small screens */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile card item — used in table-to-card pattern */
+.mob-card {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  transition: background 120ms ease;
+}
+.mob-card:last-child { border-bottom: none; }
+.mob-card:hover { background: rgba(255,255,255,0.02); }
+
+.mob-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.mob-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.mob-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+
+
+.admin-section {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.admin-section-elevated {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-elevated);
+}
+
+/* Responsive chart + alerts grid */
+.chart-alerts-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .chart-alerts-grid {
+    grid-template-columns: 1fr 340px;
+  }
+}
+
+/* Notifications compose + history grid */
+.notifications-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .notifications-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Settings sidebar + content grid */
+.settings-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .settings-grid {
+    grid-template-columns: 200px 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .settings-grid {
+    grid-template-columns: 240px 1fr;
+  }
+}
+
+/* ===== Tables ===== */
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-feature-settings: "tnum";
+}
+
+.admin-table th {
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: 12px 16px;
+  text-align: left;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table td {
+  border-top: 1px solid var(--color-border);
+  padding: 14px 16px;
+  vertical-align: middle;
+  color: var(--color-text);
+}
+
+.admin-table tbody tr:first-child td {
+  border-top: none;
+}
+
+.admin-table tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ===========================================================
+   VALLEX GROUP UTILITY CLASSES
+   These mirror the design system used in the reference project.
+   =========================================================== */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  transition: all 150ms ease;
+  white-space: nowrap;
+  line-height: 1;
+  border: 0;
+  cursor: pointer;
+}
+.btn-gold {
+  background: var(--color-gold);
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
+}
+.btn-gold:hover { background: var(--color-gold-bright); }
+
+.btn-purple { background: var(--color-purple); color: #fff; }
+.btn-purple:hover { background: #8B4BF5; }
+
+.btn-ghost {
+  background: var(--color-surface-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+.btn-ghost:hover { background: #22222C; border-color: var(--color-border-strong, #2F2F3C); }
+
+.btn-danger {
+  background: transparent;
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.30);
+}
+.btn-danger:hover { background: rgba(239, 68, 68, 0.10); }
+
+.btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+.btn-lg { padding: 14px 20px; font-size: 14px; border-radius: 12px; }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* Cards */
+.card-vex {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 12px 32px -16px rgba(0, 0, 0, 0.6);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+.badge-green { background: rgba(34, 197, 94, 0.14); color: #4ADE80; }
+.badge-amber { background: rgba(245, 158, 11, 0.15); color: #FBBF24; }
+.badge-red   { background: rgba(239, 68, 68, 0.14); color: #F87171; }
+.badge-blue  { background: rgba(124, 58, 237, 0.15); color: #A78BFA; }
+.badge-gold  { background: var(--color-gold-soft); color: var(--color-gold); }
+.badge-purple { background: var(--color-purple-soft); color: #A78BFA; }
+.badge-gray  { background: rgba(255, 255, 255, 0.05); color: var(--color-text-secondary); }
+
+/* Status dots */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot-green { background: #22C55E; box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+.dot-red   { background: #EF4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+.dot-amber { background: #F59E0B; box-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
+.dot-blue  { background: #7C3AED; box-shadow: 0 0 8px rgba(124, 58, 237, 0.6); }
+.dot-gold  { background: var(--color-gold); box-shadow: 0 0 8px rgba(245, 158, 11, 0.8); }
+
+/* Label kicker (uppercase mini caption) */
+.label-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* Table */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tbl thead th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 10px 14px;
+  background: var(--color-surface-2, #15151B);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+}
+.tbl tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+.tbl tbody tr {
+  transition: background 120ms ease;
+}
+.tbl tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Inputs */
+.vex-input,
+.vex-select,
+.vex-textarea {
+  background: var(--color-surface-2, #15151B);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--color-text);
+  width: 100%;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  font-family: inherit;
+}
+.vex-input:focus,
+.vex-select:focus,
+.vex-textarea:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
+}
+.vex-input::placeholder { color: var(--color-text-muted); }
+.vex-textarea { resize: vertical; min-height: 80px; }
+
+/* House swatch (initials block) */
+.house-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 11px;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  flex-shrink: 0;
+}
+
+/* Diagonal stripe decorators */
+.stripes {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0) 0px,
+    rgba(245, 158, 11, 0) 10px,
+    rgba(245, 158, 11, 0.10) 10px,
+    rgba(245, 158, 11, 0.10) 12px
+  );
+}
+.stripes-purple {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0) 0px,
+    rgba(124, 58, 237, 0) 10px,
+    rgba(124, 58, 237, 0.12) 10px,
+    rgba(124, 58, 237, 0.12) 12px
+  );
+}
+
+/* Top border accents for cards */
+.accent-top-gold   { box-shadow: inset 0 2px 0 0 var(--color-gold); }
+.accent-top-purple { box-shadow: inset 0 2px 0 0 var(--color-purple); }
+.accent-top-green  { box-shadow: inset 0 2px 0 0 #22C55E; }
+.accent-top-red    { box-shadow: inset 0 2px 0 0 #EF4444; }
+.accent-top-blue   { box-shadow: inset 0 2px 0 0 #7C3AED; }
+
+/* Skeleton loader */
+.skel {
+  background: linear-gradient(90deg, #1A1A20 0%, #22222C 50%, #1A1A20 100%);
+  background-size: 200% 100%;
+  animation: skel 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes skel {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Tooltip */
+.tooltip-wrap { position: relative; }
+.tooltip-wrap .tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+  border: 1px solid var(--color-border);
+  z-index: 50;
+}
+.tooltip-wrap:hover .tooltip { opacity: 1; }
+
+/* Mono helper */
+.mono {
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fade up animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.fade-up { animation: fadeUp 250ms ease both; }
+
+/* ===== Numbers ===== */
+
+.num,
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ===== Effects ===== */
+
+.glow-gold {
+  box-shadow:
+    0 0 28px rgba(245, 158, 11, 0.20),
+    0 1px 0 0 rgba(245, 158, 11, 0.24) inset;
+}
+
+.glow-gold-strong {
+  box-shadow:
+    0 0 36px rgba(245, 158, 11, 0.34),
+    0 0 0 1px rgba(245, 158, 11, 0.38) inset;
+}
+
+.glow-purple {
+  box-shadow:
+    0 0 28px rgba(124, 58, 237, 0.16),
+    0 1px 0 0 rgba(124, 58, 237, 0.26) inset;
+}
+
+/* Decorative primary top-accent for KPI cards */
+.kpi-accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-gold-bright) 0%, var(--color-gold) 35%, transparent 85%);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  z-index: 1;
+}
+
+/* Decorative purple bottom-accent for KPI cards */
+.kpi-accent-purple::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--color-purple) 100%);
+  z-index: 1;
+}
+
+/* Brand stripe — diagonal accent for hero panels (more visible) */
+.brand-stripe {
+  position: relative;
+  background-image:
+    linear-gradient(135deg, transparent 0 60%, rgba(245, 158, 11, 0.07) 60% 61.5%, transparent 61.5% 72%, rgba(124, 58, 237, 0.06) 72% 73.5%, transparent 73.5% 100%);
+}
+
+/* Aggressive diagonal stripe overlay — page hero pattern (matches brand backpack/car) */
+.brand-stripe-strong {
+  background-image:
+    linear-gradient(115deg, transparent 0 45%, rgba(245, 158, 11, 0.10) 45% 47%, transparent 47% 52%, rgba(124, 58, 237, 0.10) 52% 54%, transparent 54% 60%, rgba(245, 158, 11, 0.06) 60% 61%, transparent 61% 100%);
+}
+
+/* Page hero band — used at the top of major admin pages */
+.page-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    radial-gradient(1200px 240px at 100% -10%, rgba(124, 58, 237, 0.12), transparent 50%),
+    radial-gradient(800px 200px at 0% -20%, rgba(245, 158, 11, 0.10), transparent 50%),
+    var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.page-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(115deg, transparent 0 55%, rgba(245, 158, 11, 0.07) 55% 56%, transparent 56% 70%, rgba(124, 58, 237, 0.06) 70% 71%, transparent 71% 100%);
+  pointer-events: none;
+}
+
+/* Brand pill — the betting-mockup style CTA */
+.vex-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.vex-pill-gold {
+  background: var(--color-gold);
+  color: #FFFFFF;
+}
+.vex-pill-gold:hover {
+  background: var(--color-gold-bright);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+}
+
+.vex-pill-purple {
+  background: var(--color-purple);
+  color: #FFFFFF;
+}
+.vex-pill-purple:hover {
+  background: var(--color-purple-bright);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.22);
+}
+
+/* Section divider with primary accent */
+.section-rule {
+  height: 1px;
+  background: linear-gradient(90deg, var(--color-gold) 0%, var(--color-border) 30%, transparent 100%);
+}
+
+/* Scrollbar — subtle dark */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+@media (min-width: 1024px) {
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #303040;
+}
+
+/* Sticky footer responsive wrapper */
+.sticky-footer {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 639px) {
+  .sticky-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .sticky-footer-info {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+  .sticky-footer-divider {
+    display: none;
+  }
+}
+
+/* Vue fade transition — used by chart tooltip */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 120ms ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

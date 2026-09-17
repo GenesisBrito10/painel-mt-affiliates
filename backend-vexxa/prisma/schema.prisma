@@ -1,0 +1,1785 @@
+// ============================================================
+// VeXXa — Prisma Schema v3 (PostgreSQL 16)
+// 22 tabelas | Audit v1 (28 findings) + Audit v2 (6 schema fixes)
+//
+// V2 corrections applied:
+//   4.1 CommissionLog: userName/userEmail denormalized
+//   4.2 LinkRequest: removed duplicate bettingHouse field
+//   4.3 RankPrize/PrizeWinner: added createdAt/updatedAt
+//   4.4 WithdrawalRequest: bettingHouse NOT NULL (house-segregation)
+//   D08 SyncLog: periodoInicio→periodStart, stats prefix removed
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ──────────────────────────────────────────────────
+
+enum UserRole {
+  AFFILIATE
+  SUPPORT
+  ADMIN
+  SUPERADMIN
+}
+
+enum LoginModalAudience {
+  ALL
+  AFFILIATE
+  HEAD_AFFILIATE
+  SUPPORT
+  ADMIN
+  SUPERADMIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PinbetTrackingDimension {
+  AFP1
+  AFP2
+  COMBINED
+}
+
+enum LinkRequestStatus {
+  PENDING
+  FULFILLED
+  REJECTED
+}
+
+// Origem de um AffiliateLink — distingue link real de placeholder/commission-only.
+// "Link real ativo" = deletedAt IS NULL AND source IN (POOL, MANUAL).
+enum LinkSource {
+  POOL
+  MANUAL
+  COMMISSION_ONLY
+  PLACEHOLDER
+}
+
+// Tipo de cálculo de CPA configurado por casa.
+enum LinkRuleType {
+  INVITER_DISCOUNT
+  RANGE
+  // CPA = CPA do PRÓPRIO usuário na casa de referência (1:1, sem faixa/desconto).
+  MIRROR
+}
+
+enum LinkAssignmentRuleApplied {
+  DEFAULT
+  INVITER_MINUS_DISCOUNT
+  FALLBACK
+  RANGE_RULE
+  // CPA espelhado 1:1 da casa de referência (regra MIRROR).
+  MIRROR_REFERENCE
+  BLOCKED
+  ALREADY_HAS_LINK
+}
+
+enum LinkAssignmentOutcome {
+  LINK_ASSIGNED
+  WAITING_POOL_LINK
+  WAITING_SNAPSHOT
+  SKIPPED_AUTO_ASSIGN
+  WAITING_MANUAL_REVIEW
+  BLOCKED
+  SKIPPED
+}
+
+enum LinkAssignmentOrigin {
+  NEW_REQUEST
+  BACKFILL_OLD_REQUESTS
+  ADMIN_REPROCESS
+  ADMIN_OVERRIDE
+}
+
+enum BackfillRunStatus {
+  RUNNING
+  DONE
+  FAILED
+  FAILED_STALE
+}
+
+enum SyncMode {
+  AUTO
+  MANUAL
+}
+
+enum SyncLogStatus {
+  RUNNING
+  SUCCESS
+  ERROR
+}
+
+enum PrizeStatus {
+  ACTIVE
+  ENDED
+  FINALIZED
+}
+
+enum PrizeType {
+  BALANCE
+  PHYSICAL
+  OTHER
+}
+
+// Prize win mode: RANKING = top N by most CPA; TARGET = top N among those who reach a CPA goal.
+enum PrizeWinMode {
+  RANKING
+  TARGET
+}
+
+enum NotificationType {
+  REGISTRATION
+  COMMISSION_CHANGE
+  WITHDRAWAL_APPROVED
+  WITHDRAWAL_COMPLETED
+  WITHDRAWAL_FAILED
+  STATUS_CHANGE
+  GENERAL
+  WHATSAPP_DISCONNECTED
+  LINK_POOL_FULL
+  DEAL_FORM_APPROVED
+}
+
+// Estado de cada tentativa de envio de comprovante ao WhatsApp.
+//   WAITING_CONNECTION → instância desconectada (reagenda, não consome tentativa)
+//   PAUSED             → circuit breaker aberto (reagenda até circuitOpenUntil)
+enum WhatsappSendStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  WAITING_CONNECTION
+  PAUSED
+  CANCELLED
+}
+
+enum DepositComplianceStatus {
+  PASS
+  FAIL
+  EXEMPT
+  PENALTY_APPLIED
+}
+
+enum DepositComplianceFailReason {
+  MY_DATA_BELOW
+  TEAM_BELOW
+  BOTH_BELOW
+}
+
+enum LedgerEventType {
+  COMMISSION_CPA
+  COMMISSION_REVSHARE
+  NETWORK_CPA
+  NETWORK_REVSHARE
+  FRAUD_DEDUCTION_DIRECT
+  FRAUD_DEDUCTION_NETWORK
+  WITHDRAWAL_APPROVED
+  BONUS_CREDIT
+  MANUAL_ADJUSTMENT
+}
+
+enum LedgerEventStatus {
+  CONFIRMED
+  PENDING
+  REVERSED
+}
+
+// ─── CORE: USER ─────────────────────────────────────────────
+// F01: Decimal for money | F04: CHECK lower(email) via migration
+// F12: Composite index for admin listing | F15: onDelete policies
+// F27: Soft delete via deletedAt
+
+model User {
+  id                   String     @id @default(uuid())
+  name                 String
+  email                String     @unique
+  password             String // bcrypt hash (CHECK >= 60 chars via migration)
+  role                 UserRole   @default(AFFILIATE)
+  status               UserStatus @default(PENDING)
+  active               Boolean    @default(true)
+  ageVerified          Boolean    @default(false)
+  withdrawalBlocked    Boolean    @default(false)
+  // Quando true, o usuário vê deals marcadas como exclusive=true.
+  // Admin/superadmin sempre vê tudo. Default false → usuário comum.
+  exclusiveDealsAccess Boolean    @default(false)
+  // Liberado pelo admin: dá acesso às features de API e Webhook (abas + rotas).
+  // Admin/superadmin sempre tem acesso. Default false → bloqueado.
+  apiAccessEnabled     Boolean    @default(false)
+  bonusBalance         Decimal    @default(0) @db.Decimal(14, 2)
+  // Manual per-affiliate balance credit/debit (forgive overpaid negative
+  // balances so future earnings count fresh). Now PER-HOUSE — see the
+  // BalanceAdjustment model / `balanceAdjustments` relation below.
+  referralCode         String?    @unique
+  referredById         String?
+  referredBy           User?      @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals            User[]     @relation("UserReferrals")
+
+  // Removed: commissionCpa/commissionRevShare — no fallback, per-house via affiliateLinks only
+
+  // Payment info (always fetched together → flat, F18 decision: keep denormalized)
+  pixKeyType    String @default("")
+  pixKey        String @default("")
+  bankName      String @default("")
+  bankAgency    String @default("")
+  bankAccount   String @default("")
+  accountHolder String @default("")
+
+  // KYC — identity verification (F-KYC-01)
+  // cpf and birthDate are IMMUTABLE after first submission — change only via support
+  cpf              String?   @unique // 11 digits, validated by CPF algorithm
+  birthDate        DateTime? // must be >= 18 years at submission time
+  whatsapp         String? // E.164-compatible, e.g. +5511999990000
+  profileCompleted Boolean   @default(false) // true only when all KYC fields are present
+  avatarUrl        String?
+
+  // Deposit compliance
+  depositComplianceAlertCount  Int       @default(0)
+  depositCompliancePenalizedAt DateTime?
+
+  // Superbet inactivity compliance
+  superbetInactiveDays Int       @default(0)
+  superbetLastActiveAt DateTime?
+
+  // External panel users (third-party API). isExternal users are shadow
+  // accounts created via the affiliate API for a third party's own panel
+  // users. They CANNOT log in (blocked in auth) and are EXCLUDED from
+  // affiliate counts/rankings. externalId = the id in the third party's panel,
+  // unique within the owner (referredById) scope.
+  isExternal    Boolean @default(false)
+  externalId    String?
+  // Real e-mail of an external sub-user as received from the partner. Stored
+  // here (NON-unique) instead of `email` so a clash with an existing account
+  // never hijacks/merges identities — `email` stays synthetic for externals.
+  // Used for display ("email estranho" sintético nunca é exibido) and search.
+  externalEmail String?
+
+  // Soft delete (F27)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations 1:N
+  affiliateLinks            AffiliateLink[]
+  fraudCounts               FraudCount[]
+  balanceAdjustments        BalanceAdjustment[]
+  withdrawalRequests        WithdrawalRequest[]    @relation("WithdrawalUser")
+  approvedWithdrawals       WithdrawalRequest[]    @relation("WithdrawalApprover")
+  linkRequests              LinkRequest[]          @relation("LinkRequestUser")
+  fulfilledLinkRequests     LinkRequest[]          @relation("LinkRequestFulfiller")
+  notifications             Notification[]
+  commissionLogsReceived    CommissionLog[]        @relation("CommissionLogUser")
+  commissionLogsChanged     CommissionLog[]        @relation("CommissionLogChanger")
+  auditLogs                 AuditLog[]
+  fraudLogsReceived         FraudLog[]             @relation("FraudLogUser")
+  fraudLogsChanged          FraudLog[]             @relation("FraudLogChanger")
+  fraudCountsUpdated        FraudCount[]           @relation("FraudCountUpdater")
+  balanceAdjustmentsUpdated BalanceAdjustment[]    @relation("BalanceAdjustmentUpdater")
+  depositComplianceLogs     DepositComplianceLog[]
+  pushSubscriptions         PushSubscription[]
+  notificationSnapshots     NotificationSnapshot[]
+  refreshTokens             RefreshToken[]
+  passwordResetTokens       PasswordResetToken[]
+  prizesCreated             RankingPrize[]         @relation("PrizeCreator")
+  prizesFinalized           RankingPrize[]         @relation("PrizeFinalizer")
+  prizeWins                 PrizeWinner[]
+  financialLedger           FinancialLedger[]
+  linkWebhookSettings       LinkWebhookSettings?
+  linkWebhookDeliveries     LinkWebhookDelivery[]
+  affiliateApiTokens        AffiliateApiToken[]
+  cpaPrizeRulesCreated      CpaPrizeRule[]         @relation("CpaPrizeRuleCreator")
+  cpaPrizeAwards            CpaPrizeAward[]
+  cpaPrizeProgress          CpaPrizeProgress[]
+  withdrawalDayReleases     WithdrawalDayRelease[]
+
+  // Support Chat relations
+  conversationsAsAffiliate SupportConversation[]           @relation("ConversationAffiliate")
+  conversationsAsAgent     SupportConversation[]           @relation("ConversationAgent")
+  supportMessages          SupportMessage[]                @relation("MessageSender")
+  supportAssignments       SupportConversationAssignment[] @relation("AssignmentAgent")
+  agentAvailability        SupportAgentAvailability?       @relation("AgentAvailability")
+
+  // External panel user uniqueness within an owner's scope. NULL externalId
+  // (real affiliates) never collide — Postgres treats NULLs as distinct.
+  @@unique([referredById, externalId], name: "uq_owner_external")
+  // F12: Composite for admin listing (replaces individual role/status indexes)
+  @@index([role, status, createdAt(sort: Desc)])
+  @@index([referredById])
+  @@index([deletedAt])
+  @@index([externalEmail])
+  @@map("users")
+}
+
+// ─── WITHDRAWAL DAY RELEASE ─────────────────────────────────
+// Libera 1 saque EXTRA por casa no dia (bypass do rate-limit 1/dia/casa).
+// Concedida pelo admin; consumida quando o saque extra é criado.
+model WithdrawalDayRelease {
+  id            String    @id @default(uuid())
+  userId        String
+  bettingHouse  String
+  releaseDate   DateTime // início do dia (local) — casa com a janela do rate-limit
+  consumedAt    DateTime? // null = disponível
+  reason        String?
+  createdById   String
+  createdByName String
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, bettingHouse, releaseDate, consumedAt], map: "withdrawal_day_releases_lookup_idx")
+  @@map("withdrawal_day_releases")
+}
+
+// ─── AFFILIATE LINK ─────────────────────────────────────────
+// Vincula um user a uma casa de aposta com suas taxas de comissão.
+// campaignId = ID da campanha no dashboard da casa (ex: ngx_source_id da Lottu)
+// Cada link é isolado POR CASA — comissões nunca cruzam entre casas.
+
+model AffiliateLink {
+  id                String           @id @default(uuid())
+  userId            String
+  // Restrict (não Cascade): impede que apagar/cascade de User leve junto o
+  // link/cpa/campaignId. Remoção de afiliado é soft-delete (User.deletedAt).
+  user              User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  bettingHouse      String // slug (lowercase) — DIMENSÃO DE ISOLAMENTO
+  bettingHouseRef   BettingHouse?    @relation(fields: [bettingHouse], references: [slug])
+  affiliateId       String           @default("") // = affiliateName do MongoDB (ID único da campanha no provedor)
+  campaignId        String // REQUIRED — ID da campanha na casa, globalmente único por casa
+  cpa               Decimal?         @db.Decimal(10, 4)
+  revshare          Decimal?         @db.Decimal(10, 4)
+  // URL de afiliado que o usuário compartilha (link de divulgação).
+  userLink          String?
+  // Dimensão de campanha retornada pelo provedor (ex.: Telegram na Sportingbet).
+  linkType          String?
+  // Origem do vínculo. Só POOL/MANUAL contam como "link real ativo" (ver enum
+  // LinkSource). placeholder `pending_*`/commission-only NÃO contam para
+  // checagem de link/duplicidade/dependência/eligibility.
+  source            LinkSource       @default(POOL)
+  // Painel (conta de provedor) — enriquecido pelo sync quando o
+  // par (campaignId, bettingHouse) coincide com uma row de AffiliateData.
+  providerAccountId String?
+  providerAccount   ProviderAccount? @relation(fields: [providerAccountId], references: [id], onDelete: SetNull)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  // Soft delete: NUNCA hard-delete (preserva campaignId/link/cpa). Hard-delete
+  // é bloqueado na extensão Prisma (prisma-audit.extension). Ver migração que
+  // cria o índice único PARCIAL uq_campaign_house_active WHERE "deletedAt" IS NULL.
+  deletedAt         DateTime?
+
+  // Unicidade (campaignId,bettingHouse) é garantida por ÍNDICE PARCIAL no DB
+  // (apenas linhas ativas, deletedAt IS NULL) — não declarável no Prisma, ver migração.
+  @@index([userId, bettingHouse])
+  @@index([providerAccountId])
+  @@index([deletedAt])
+  @@map("affiliate_links")
+}
+
+// ─── FRAUD COUNT ────────────────────────────────────────────
+// F14: Added FK for updatedById
+
+model FraudCount {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bettingHouse    String
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+  count           Int           @default(0)
+  updatedById     String?
+  updatedBy       User?         @relation("FraudCountUpdater", fields: [updatedById], references: [id])
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([userId, bettingHouse])
+  @@map("fraud_counts")
+}
+
+// Manual per-affiliate balance credit/debit, PER HOUSE (mirrors FraudCount).
+// `amount` is added to that house's earnings (and to baseGross). Set manually
+// in the DB — forgives overpaid (negative) balances so future earnings count
+// fresh, isolated per house instead of via a single global figure.
+model BalanceAdjustment {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bettingHouse    String
+  pinbetDimension PinbetTrackingDimension?
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+  amount          Decimal       @default(0) @db.Decimal(14, 2)
+  reason          String?
+  updatedById     String?
+  updatedBy       User?         @relation("BalanceAdjustmentUpdater", fields: [updatedById], references: [id])
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([userId, bettingHouse])
+  @@index([bettingHouse, pinbetDimension])
+  @@map("balance_adjustments")
+}
+
+// ─── AFFILIATE DATA (métricas de performance POR CASA) ─────
+// Tabela MAIS CONSULTADA — todos os dashboards leem daqui.
+// ISOLAMENTO: cada row pertence a UMA casa (bettingHouse) e UMA campanha (campaignId).
+// Queries SEMPRE filtram por bettingHouse — nunca agregam cross-house.
+
+model AffiliateData {
+  id              String        @id @default(uuid())
+  affiliateId     String        @default("") // = affiliateName do MongoDB (ID único no provedor)
+  campaignId      String // ID da campanha na casa — deve = affiliateName do Mongo
+  bettingHouse    String // slug (lowercase) — DIMENSÃO DE ISOLAMENTO
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+  campaignName    String        @default("default") // nome do projeto/campanha dentro da casa
+  utmCampaign     String        @default("") // conta/painel do sync
+  date            DateTime      @db.Date
+  clicks          Int           @default(0)
+  registrations   Int           @default(0)
+  ftds            Int           @default(0)
+  qftd            Int           @default(0)
+  deposit         Decimal       @default(0) @db.Decimal(14, 2)
+  netPl           Decimal?      @db.Decimal(14, 2)
+  withdrawalTotal Decimal?      @db.Decimal(14, 2)
+  volume          Decimal?      @db.Decimal(14, 2)
+  revShare        Decimal       @default(0) @db.Decimal(14, 2)
+  cpaQualified    Int           @default(0)
+  cpaValue        Decimal       @default(0) @db.Decimal(14, 2)
+  totalCommission Decimal       @default(0) @db.Decimal(14, 2)
+  source          String        @default("otg-api")
+  lastSyncAt      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // 1 registro por campanha + casa + dia + projeto + utm
+  @@unique([campaignId, bettingHouse, date, campaignName, utmCampaign], name: "uq_affiliate_data")
+  @@index([affiliateId, bettingHouse, date])
+  @@index([bettingHouse, date])
+  @@index([campaignId, bettingHouse])
+  @@index([campaignId, bettingHouse, date, campaignName]) // covering for dashboard
+  @@map("affiliate_data")
+}
+
+enum AffiliateDataChangeType {
+  INSERT
+  UPDATE
+}
+
+/// Append-only history of meaningful changes to affiliate_data rows.
+/// Only persisted when a sync UPSERT modifies a balance-relevant field
+/// (cpaQualified, cpaValue, totalCommission, qftd, ftds, deposit, revShare).
+/// Pure clicks/registrations updates are skipped to keep volume bounded.
+/// Used to audit balance disputes ("I had R$X yesterday, now R$Y").
+model AffiliateDataChangeLog {
+  id              String                  @id @default(uuid())
+  affiliateDataId String? // null when row was inserted (no prior state)
+  campaignId      String
+  bettingHouse    String
+  campaignName    String
+  utmCampaign     String
+  date            DateTime                @db.Date
+  changeType      AffiliateDataChangeType
+  source          String
+  syncLogId       String?
+  changedAt       DateTime                @default(now())
+
+  // Previous values — null on INSERT
+  prevClicks          Int?
+  prevRegistrations   Int?
+  prevFtds            Int?
+  prevQftd            Int?
+  prevDeposit         Decimal? @db.Decimal(14, 2)
+  prevNetPl           Decimal? @db.Decimal(14, 2)
+  prevWithdrawalTotal Decimal? @db.Decimal(14, 2)
+  prevVolume          Decimal? @db.Decimal(14, 2)
+  prevRevShare        Decimal? @db.Decimal(14, 2)
+  prevCpaQualified    Int?
+  prevCpaValue        Decimal? @db.Decimal(14, 2)
+  prevTotalCommission Decimal? @db.Decimal(14, 2)
+
+  // New values — always set
+  newClicks          Int
+  newRegistrations   Int
+  newFtds            Int
+  newQftd            Int
+  newDeposit         Decimal  @db.Decimal(14, 2)
+  newNetPl           Decimal? @db.Decimal(14, 2)
+  newWithdrawalTotal Decimal? @db.Decimal(14, 2)
+  newVolume          Decimal? @db.Decimal(14, 2)
+  newRevShare        Decimal  @db.Decimal(14, 2)
+  newCpaQualified    Int
+  newCpaValue        Decimal  @db.Decimal(14, 2)
+  newTotalCommission Decimal  @db.Decimal(14, 2)
+
+  @@index([campaignId, bettingHouse, date, changedAt])
+  @@index([bettingHouse, changedAt])
+  @@index([syncLogId])
+  @@map("affiliate_data_change_logs")
+}
+
+model AffiliateApiToken {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  tokenHint   String
+  // "live" (vex_live_) or "test" (vex_test_) — one active token per (user, environment).
+  environment String    @default("live")
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, revokedAt])
+  @@index([userId, environment, revokedAt])
+  @@map("affiliate_api_tokens")
+}
+
+// Raw payload log of every affiliate-API link-request received. Persists EXACTLY
+// what the partner sent (esp. userEmail) so the received e-mail is never lost —
+// even if the shadow user falls back to a synthetic address on e-mail clash —
+// enabling search, metrics and backfill keyed by externalId.
+model AffiliateApiLinkRequestLog {
+  id               String   @id @default(uuid())
+  ownerUserId      String // the partner (real affiliate) who made the call
+  externalId       String // panel user id sent by the partner
+  userEmail        String // e-mail received in the payload
+  userName         String // name received in the payload
+  bettingHouseSlug String // house received in the payload
+  dealId           String?
+  message          String?
+  requesterId      String? // resolved shadow user id
+  // True when the shadow user's stored e-mail is synthetic (clash/absent) and
+  // therefore differs from this received userEmail.
+  emailSynthetic   Boolean  @default(false)
+  payload          Json // full raw payload as received
+  createdAt        DateTime @default(now())
+
+  @@index([ownerUserId, createdAt])
+  @@index([externalId])
+  @@index([userEmail])
+  @@map("affiliate_api_link_request_logs")
+}
+
+// Isolated storage for the affiliate-API SANDBOX (test mode). Production code
+// NEVER reads this table, so sandbox data cannot leak into real balances,
+// network earnings, admin views, rankings, metrics, or payouts.
+model AffiliateApiSandboxRecord {
+  id          String   @id @default(uuid())
+  ownerUserId String // the partner (real affiliate) who owns the test token
+  kind        String // 'user' | 'withdrawal'
+  externalId  String? // sandbox sub-user key (from the partner's panel)
+  refId       String? // withdrawal id, etc.
+  payload     Json // entity snapshot
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerUserId, kind])
+  @@map("affiliate_api_sandbox_records")
+}
+
+// ─── BETTING HOUSE ──────────────────────────────────────────
+// F04: CHECK lower(slug) via migration | F25: apiKey should be encrypted
+
+model BettingHouse {
+  id                  String    @id @default(uuid())
+  name                String
+  slug                String    @unique // lowercase enforced via CHECK + DTO @Transform
+  apiBaseURL          String    @default("")
+  apiBasePath         String    @default("/api/v1")
+  apiKey              String    @default("") // F25: encrypt via pgcrypto in app layer
+  active              Boolean   @default(true)
+  syncSchedule        String    @default("0 */2 * * *")
+  syncMode            SyncMode  @default(AUTO)
+  logoUrl             String    @default("")
+  withdrawalDay       Int? // day of month for withdrawals start (1-31)
+  withdrawalDayEnd    Int? // day of month for withdrawals end (1-31), null = same as withdrawalDay
+  withdrawalDay2      Int? // 2nd monthly window start (1-31) — used for biweekly (e.g. hiperbet days 1-2 + 15-16)
+  withdrawalDay2End   Int? // 2nd monthly window end (1-31), null = same as withdrawalDay2
+  withdrawalWeekday   Int? // 0=Sun..6=Sat. If set, weekly cadence overrides day-of-month windows.
+  minCpaToWithdraw    Int       @default(0) // minimum qualified CPAs the affiliate must have in this house to withdraw
+  // Média mínima de depósito por CPA exigida NESTA casa para liberar saque
+  // (antes era um único valor global). Network heads são isentos.
+  minAvgDepositPerCpa Decimal   @default(70) @db.Decimal(14, 2)
+  // Mínimo de saque NESTA casa. null = usa o mínimo global (min_withdrawal_amount).
+  minWithdrawalAmount Decimal?  @db.Decimal(14, 2)
+  withdrawalEnabled   Boolean   @default(true) // false = saques desativados para esta casa (independe de cadência)
+  lastSyncAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  deals                 Deal[]
+  syncLogs              SyncLog[]
+  providerAccountHouses ProviderAccountHouse[]
+  // FK back-relations (slug-based)
+  affiliateLinks        AffiliateLink[]
+  affiliateData         AffiliateData[]
+  withdrawalRequests    WithdrawalRequest[]
+  commissionLogs        CommissionLog[]
+  fraudCounts           FraudCount[]
+  balanceAdjustments    BalanceAdjustment[]
+  fraudLogs             FraudLog[]
+  notificationSnapshots NotificationSnapshot[]
+  rankingPrizes         RankingPrize[]
+  linkRule              HouseLinkRule?
+  cpaPrizeRuleVersions  CpaPrizeRuleVersion[]
+
+  @@map("betting_houses")
+}
+
+// ─── DEAL ───────────────────────────────────────────────────
+// F01: Decimal for rates/money | F03: @db.Text for long text
+
+// Tipo de deal: LINK = fluxo padrão (afiliado solicita link e admin fulfilla com
+// URLs). FORM = deal cujo acesso exige preencher um formulário dinâmico (campos
+// definidos em `Deal.formSchema`); a submissão vira LinkRequest com `formData`.
+enum DealKind {
+  LINK
+  FORM
+}
+
+model Deal {
+  id                     String       @id @default(uuid())
+  bettingHouseSlug       String
+  bettingHouse           BettingHouse @relation(fields: [bettingHouseSlug], references: [slug])
+  name                   String
+  // Tipo do deal — dita se o afiliado solicita link (LINK) ou preenche form (FORM).
+  kind                   DealKind     @default(LINK)
+  // Definição dinâmica dos campos do formulário (array de FormField), usada quando
+  // kind=FORM. Editável pelo admin (construtor de formulário). null para kind=LINK.
+  formSchema             Json?
+  cpa                    Decimal      @default(0) @db.Decimal(10, 4)
+  revshare               Decimal      @default(0) @db.Decimal(10, 4)
+  baseline               Decimal      @default(0) @db.Decimal(14, 2)
+  minAvgDepositPerFtd    Decimal      @default(80) @db.Decimal(14, 2)
+  minQualifiedFtd        Int          @default(15)
+  exclusive              Boolean      @default(false)
+  featured               Boolean      @default(false)
+  newArrival             Boolean      @default(false)
+  sortOrder              Int          @default(0)
+  paymentCpaLabel        String       @default("")
+  paymentRevshareLabel   String       @default("")
+  revenueType            String       @default("")
+  revNegativeAccumulates Boolean      @default(false)
+  revNegativeOffsetsCpa  Boolean      @default(false)
+  withdrawalIndicators   String[]     @default([])
+  trafficSources         String[]     @default([])
+  conditionsText         String       @default("") @db.Text
+  paymentNotes           String       @default("") @db.Text
+  logoUrl                String       @default("")
+  active                 Boolean      @default(true)
+  legacyKey              String?      @unique
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  linkRequests LinkRequest[]
+
+  @@index([bettingHouseSlug, sortOrder(sort: Desc), name])
+  @@index([active])
+  @@map("deals")
+}
+
+// ─── WITHDRAWAL REQUEST ─────────────────────────────────────
+// F01: Decimal | F07: Partial index for PENDING via migration
+// F15: onDelete RESTRICT (can't delete user with withdrawals)
+// V2-4.4: bettingHouse NOT NULL — house-segregation enforced at DB level
+
+model WithdrawalRequest {
+  id              String           @id @default(uuid())
+  userId          String
+  user            User             @relation("WithdrawalUser", fields: [userId], references: [id], onDelete: Restrict)
+  amount          Decimal          @db.Decimal(14, 2)
+  originalAmount  Decimal          @default(0) @db.Decimal(14, 2)
+  withdrawalFee   Decimal          @default(0) @db.Decimal(14, 2)
+  bettingHouse    String // V2-4.4: NOT NULL — every withdrawal is per-house
+  pinbetDimension PinbetTrackingDimension?
+  bettingHouseRef BettingHouse?    @relation(fields: [bettingHouse], references: [slug])
+  pixKeyType      String
+  pixKey          String
+  bankName        String           @default("")
+  bankAgency      String           @default("")
+  bankAccount     String           @default("")
+  accountHolder   String
+  status          WithdrawalStatus @default(PENDING)
+  requestNote     String           @default("") @db.Text
+  adminNote       String           @default("") @db.Text
+  approvedAt      DateTime?
+  approvedById    String?
+  approvedBy      User?            @relation("WithdrawalApprover", fields: [approvedById], references: [id])
+
+  // HeartPay gateway integration (POST /api/v1/client/payouts)
+  gatewayProvider         String?
+  gatewayId               String?   @unique
+  gatewayStatus           String?
+  gatewayRequest          Json?
+  gatewayResponse         Json?
+  gatewaySentAt           DateTime?
+  gatewayCompletedAt      DateTime?
+  gatewayFailureReason    String?   @db.Text
+  gatewayEndToEnd         String?
+  gatewayReceiver         Json?
+  gatewayAttempts         Int       @default(0)
+  // Receipt (PNG base64) persisted after webhook delivery for PayOutCompleted.
+  gatewayReceiptBase64    String?   @db.Text
+  gatewayReceiptFormat    String?
+  gatewayReceiptFetchedAt DateTime?
+  // PayOutRefunded — recipient returned the PIX (total or partial). The
+  // refunded portion is credited back to the affiliate's available balance
+  // by DashboardBalanceService. Status stays COMPLETED for partial refunds;
+  // full refunds flip to FAILED (handled in WithdrawalService).
+  gatewayRefundedAmount   Decimal?  @db.Decimal(14, 2)
+  gatewayRefundedAt       DateTime?
+  gatewayRefundEndToEnd   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([bettingHouse])
+  @@index([bettingHouse, pinbetDimension])
+  @@index([status, createdAt(sort: Desc)]) // admin list: filter by status + paginate
+  @@index([createdAt(sort: Desc)]) // admin list: no status filter
+  @@index([approvedById]) // FK join when loading approvedBy user
+  // GIN trigram indexes on users.name/email: see prisma/migrations/MANUAL_INDEXES.md
+  @@map("withdrawal_requests")
+}
+
+// ─── GATEWAY WEBHOOK EVENT ─────────────────────────────────
+// Idempotent log of every callback from payment provider.
+// eventKey = sha256(provider|gatewayId|event|sent_at) — UNIQUE
+// guarantees at-most-once processing under retry storms.
+
+model GatewayWebhookEvent {
+  id           String   @id @default(uuid())
+  provider     String   @default("xflow")
+  eventKey     String   @unique
+  event        String
+  gatewayId    String
+  withdrawalId String?
+  rawPayload   Json
+  status       String   @default("processed")
+  error        String?  @db.Text
+  receivedAt   DateTime @default(now())
+
+  @@index([gatewayId])
+  @@index([withdrawalId])
+  @@map("gateway_webhook_events")
+}
+
+// ─── LINK REQUEST ───────────────────────────────────────────
+// F15: onDelete RESTRICT | F16: links as Json (validated in DTO)
+// V2-4.2: Removed duplicate bettingHouse field — only bettingHouseSlug remains
+
+model LinkRequest {
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation("LinkRequestUser", fields: [userId], references: [id], onDelete: Restrict)
+  dealId           String?
+  deal             Deal?             @relation(fields: [dealId], references: [id])
+  bettingHouseSlug String // V2-4.2: single source of truth
+  message          String            @default("") @db.Text
+  status           LinkRequestStatus @default(PENDING)
+  links            Json              @default("[]") // [{label, url}] — validated via DTO
+  // Respostas do formulário quando o deal é kind=FORM (snapshot). Campos marcados
+  // como `secret` no formSchema (ex.: senha de terceiro) são gravados CIFRADOS
+  // (CryptoService/AES-256-GCM) — só o admin descriptografa na leitura. null p/ LINK.
+  formData         Json?
+  adminNote        String            @default("") @db.Text
+  fulfilledAt      DateTime?
+  fulfilledById    String?
+  fulfilledBy      User?             @relation("LinkRequestFulfiller", fields: [fulfilledById], references: [id])
+  fulfilledByName  String            @default("")
+
+  // ─── Snapshot do CPA resolvido (fonte de verdade enquanto aguarda link no pool)
+  // Gravado no create(). O scheduler atribui usando estes valores, NUNCA recalcula.
+  // Alteração futura de HouseLinkRule não muda solicitações já snapshotadas.
+  resolvedCpa         Decimal?                   @db.Decimal(10, 4)
+  resolvedRevshare    Decimal?                   @db.Decimal(10, 4)
+  resolvedRuleApplied LinkAssignmentRuleApplied?
+  houseRuleId         String? // snapshot histórico (SetNull, nunca cascade)
+  houseRule           HouseLinkRule?             @relation(fields: [houseRuleId], references: [id], onDelete: SetNull)
+  houseRuleUpdatedAt  DateTime? // versão prática da regra usada
+  resolvedAt          DateTime?
+  inviterId           String?
+  inviterCpa          Decimal?                   @db.Decimal(10, 4)
+  rangeReferenceHouse String?
+  rangeReferenceCpa   Decimal?                   @db.Decimal(10, 4)
+  requiredHouseSlugs  String[]                   @default([])
+  missingHouseSlugs   String[]                   @default([])
+  blockedReason       String?                    @db.Text
+  blockedMetadata     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  linkWebhookDeliveries LinkWebhookDelivery[]
+
+  @@index([userId])
+  @@index([dealId])
+  @@index([status])
+  @@index([bettingHouseSlug])
+  @@index([houseRuleId])
+  @@map("link_requests")
+}
+
+// ─── NOTIFICATION ───────────────────────────────────────────
+// F05/F19: NotificationType enum | F09: Partial index for unread via migration
+// F11: GIN index on metadata via migration
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  read      Boolean          @default(false)
+  metadata  Json? // {bettingHouse, field, oldValue, newValue, prizeId, etc.}
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // F09: Partial index via raw SQL: WHERE read = false
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+// ─── COMMISSION LOG ─────────────────────────────────────────
+// F01: Decimal | F15: onDelete SET NULL (preserve audit trail)
+// V2-4.1: Added userName/userEmail denormalized (same pattern as AuditLog)
+
+model CommissionLog {
+  id              String        @id @default(uuid())
+  userId          String?
+  user            User?         @relation("CommissionLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  userName        String // V2-4.1: denormalized snapshot
+  userEmail       String // V2-4.1: denormalized snapshot
+  changedById     String?
+  changedBy       User?         @relation("CommissionLogChanger", fields: [changedById], references: [id], onDelete: SetNull)
+  bettingHouse    String
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+  field           String // 'cpa' | 'revshare'
+  oldValue        Decimal?      @db.Decimal(10, 4)
+  newValue        Decimal?      @db.Decimal(10, 4)
+  // Origem da mudança: APPROVAL | ASSIGNMENT | ADMIN_EDIT | SYNC | RESTORE | SCRIPT
+  source          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, bettingHouse])
+  @@map("commission_logs")
+}
+
+// ─── SETTINGS ───────────────────────────────────────────────
+// F23: Cache via Redis in NestJS SettingsService (30s TTL)
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  label     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ─── LOGIN MODALS ──────────────────────────────────────────
+// Conteúdos exibidos automaticamente após login, controlados pelo banco.
+
+model LoginModal {
+  id                   String             @id @default(uuid())
+  key                  String             @unique
+  enabled              Boolean            @default(true)
+  audience             LoginModalAudience @default(AFFILIATE)
+  priority             Int                @default(100)
+  kind                 String             @default("notice")
+  title                String
+  eyebrow              String             @default("")
+  description          String             @default("") @db.Text
+  icon                 String             @default("")
+  actionLabel          String             @default("Entendi")
+  secondaryActionLabel String             @default("Agora não")
+  actionUrl            String?
+  accent               String             @default("brand")
+  storageKey           String             @default("")
+  dismissScope         String             @default("session")
+  imageUrl             String? // url pública R2 (ou url colada manualmente)
+  imageLayout          String             @default("none") // "none" | "top" | "full"
+  lockSeconds          Int                @default(0) // segundos travado antes de liberar fechar
+  payload              Json?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([enabled, priority])
+  @@map("login_modals")
+}
+
+// ─── RANKING PRIZE ──────────────────────────────────────────
+
+model RankingPrize {
+  id              String        @id @default(uuid())
+  title           String
+  description     String        @default("") @db.Text
+  prizeType       PrizeType     @default(OTHER)
+  prizeValue      Decimal       @default(0) @db.Decimal(14, 2)
+  prizeLabel      String        @default("")
+  icon            String        @default("🏆")
+  startDate       DateTime      @db.Date
+  endDate         DateTime      @db.Date
+  winnersCount    Int           @default(1)
+  targetCpa       Int           @default(0)
+  // null = conta CPA de todas as casas; slug = conta CPA só dessa casa
+  bettingHouse    String?
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+  winMode         PrizeWinMode  @default(RANKING)
+  // false = meta/ranking conta CPA da produção INDIVIDUAL do afiliado;
+  // true = conta CPA da REDE (downline) do afiliado. Usado p/ modo TARGET (meta de CPA).
+  cpaFromNetwork  Boolean       @default(false)
+  // Só modo TARGET: máximo de vezes que o MESMO usuário pode vencer esta meta
+  // (ex.: afiliado com vários links pode bater a meta em vários). null = ilimitado.
+  maxWinsPerUser  Int?
+  status          PrizeStatus   @default(ACTIVE)
+  createdById     String
+  createdBy       User          @relation("PrizeCreator", fields: [createdById], references: [id])
+  finalizedById   String?
+  finalizedBy     User?         @relation("PrizeFinalizer", fields: [finalizedById], references: [id])
+  finalizedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  prizes  RankPrize[]
+  winners PrizeWinner[]
+
+  @@index([status, endDate])
+  @@map("ranking_prizes")
+}
+
+// V2-4.3: Added timestamps for consistency
+model RankPrize {
+  id             String       @id @default(uuid())
+  rankingPrizeId String
+  rankingPrize   RankingPrize @relation(fields: [rankingPrizeId], references: [id], onDelete: Cascade)
+  rank           Int
+  prizeType      PrizeType
+  prizeValue     Decimal      @default(0) @db.Decimal(14, 2)
+  prizeLabel     String       @default("")
+  icon           String       @default("")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([rankingPrizeId, rank])
+  @@map("rank_prizes")
+}
+
+// V2-4.3: Added timestamps for consistency
+model PrizeWinner {
+  id              String       @id @default(uuid())
+  rankingPrizeId  String
+  rankingPrize    RankingPrize @relation(fields: [rankingPrizeId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userName        String
+  campaignId      String
+  cpaAchieved     Int
+  rank            Int
+  prizeType       PrizeType    @default(OTHER)
+  prizeValue      Decimal      @default(0) @db.Decimal(14, 2)
+  prizeLabel      String       @default("")
+  redeemed        Boolean      @default(false)
+  redeemedAt      DateTime?
+  balanceCredited Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([rankingPrizeId])
+  @@index([userId])
+  @@map("prize_winners")
+}
+
+// ─── AUDIT LOG ──────────────────────────────────────────────
+// F15: onDelete SET NULL | F20: userName/userEmail denormalized (correct for audit)
+// F28: TTL 90 days via pg_cron
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName   String // denormalized snapshot (F20: intentional)
+  userEmail  String // denormalized snapshot
+  action     String
+  resource   String
+  method     String
+  path       String
+  ip         String   @default("")
+  userAgent  String   @default("")
+  statusCode Int      @default(200)
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([resource, createdAt(sort: Desc)])
+  @@index([method, createdAt(sort: Desc)]) // admin audit-log list filters by method
+  // GIN trigram indexes on action/resource/userEmail/userName: see prisma/migrations/MANUAL_INDEXES.md
+  @@map("audit_logs")
+}
+
+// ─── DEPOSIT COMPLIANCE LOG ─────────────────────────────────
+
+model DepositComplianceLog {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  evaluationDate DateTime @db.Date
+
+  myDataDeposit Decimal @db.Decimal(14, 2)
+  myDataQftd    Int
+  myDataAvg     Decimal @db.Decimal(14, 2)
+
+  teamDeposit Decimal @db.Decimal(14, 2)
+  teamQftd    Int
+  teamAvg     Decimal @db.Decimal(14, 2)
+  teamSkipped Boolean @default(false)
+
+  threshold Decimal @db.Decimal(14, 2)
+
+  status     DepositComplianceStatus
+  failReason DepositComplianceFailReason?
+
+  alertCountAfter         Int      @default(0)
+  withdrawalBlockedForDay Boolean  @default(false)
+  penaltyApplied          Boolean  @default(false)
+  processedAt             DateTime @default(now())
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([userId, evaluationDate])
+  @@index([evaluationDate, status])
+  @@index([userId, status])
+  @@map("deposit_compliance_logs")
+}
+
+// ─── FRAUD LOG ──────────────────────────────────────────────
+
+model FraudLog {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation("FraudLogUser", fields: [userId], references: [id])
+  changedById     String
+  changedBy       User          @relation("FraudLogChanger", fields: [changedById], references: [id])
+  bettingHouse    String
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+  oldCount        Int           @default(0)
+  newCount        Int           @default(0)
+  reason          String        @default("") @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("fraud_logs")
+}
+
+// ─── NOTIFICATION SNAPSHOT ──────────────────────────────────
+
+model NotificationSnapshot {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bettingHouse    String
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+  clicks          Int           @default(0)
+  registrations   Int           @default(0)
+  ftds            Int           @default(0)
+  cpaQualified    Int           @default(0)
+  lastCheckedAt   DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([userId, bettingHouse])
+  @@map("notification_snapshots")
+}
+
+// ─── PUSH SUBSCRIPTION ─────────────────────────────────────
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, endpoint])
+  @@map("push_subscriptions")
+}
+
+// ─── SYNC LOG ───────────────────────────────────────────────
+// V1-D08: Renamed periodoInicio/Fim → periodStart/End (English)
+// V1-D08: Removed redundant stats prefix
+
+model SyncLog {
+  id              String        @id @default(uuid())
+  bettingHouse    String
+  bettingHouseRef BettingHouse  @relation(fields: [bettingHouse], references: [slug])
+  startTime       DateTime
+  endTime         DateTime?
+  status          SyncLogStatus @default(RUNNING)
+  triggeredBy     String        @default("cron")
+  periodStart     DateTime?     @db.Date // V1-D08: was periodoInicio
+  periodEnd       DateTime?     @db.Date // V1-D08: was periodoFim
+  totalRecords    Int           @default(0) // V1-D08: was statsTotalRecords
+  inserted        Int           @default(0) // V1-D08: was statsInserted
+  updated         Int           @default(0) // V1-D08: was statsUpdated
+  errors          Int           @default(0) // V1-D08: was statsErrors
+  errorMessage    String?       @db.Text
+  createdAt       DateTime      @default(now())
+
+  @@index([bettingHouse, createdAt(sort: Desc)])
+  @@map("sync_logs")
+}
+
+// ─── PROVIDER ACCOUNT ───────────────────────────────────────
+// Credentials encrypted via AES-256-GCM (CryptoService)
+// Used by SyncModule to authenticate with external providers
+
+model ProviderAccount {
+  id                String                 @id @default(uuid())
+  name              String
+  provider          String // "betboard" — validated via DTO
+  apiBaseUrl        String                 @default("https://api-affiliates.mgaffiliates.site/api")
+  email             String // plaintext — not a secret
+  encryptedPassword String // AES-256-GCM encrypted
+  active            Boolean                @default(true)
+  lastUsedAt        DateTime?
+  lastError         String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  houses            ProviderAccountHouse[]
+  affiliateLinks    AffiliateLink[]
+
+  @@unique([name, provider], name: "uq_account_name_provider")
+  @@index([provider, active])
+  @@map("provider_accounts")
+}
+
+model ProviderAccountHouse {
+  id                String          @id @default(uuid())
+  providerAccountId String
+  providerAccount   ProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+  bettingHouseSlug  String
+  bettingHouse      BettingHouse    @relation(fields: [bettingHouseSlug], references: [slug])
+  bookmarkerId      String
+  extraConfig       Json            @default("{}")
+  active            Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([providerAccountId, bettingHouseSlug], name: "uq_account_house")
+  @@index([bettingHouseSlug])
+  @@map("provider_account_houses")
+}
+
+// ─── REFRESH TOKEN ──────────────────────────────────────────
+// Secure token rotation: SHA-256 hash stored, familyId for reuse detection.
+// On refresh: old token revoked, new token issued with same familyId.
+// On reuse detection (revoked token presented): entire family revoked.
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique // SHA-256 of the raw token (never store plaintext)
+  familyId  String // groups tokens from the same login session
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// ─── FINANCIAL LEDGER ───────────────────────────────────────
+// Immutable record of all balance-affecting events
+
+model FinancialLedger {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  eventType LedgerEventType
+  status    LedgerEventStatus @default(CONFIRMED)
+
+  amount       Decimal @db.Decimal(14, 2)
+  bettingHouse String?
+  campaignId   String?
+  sourceUserId String?
+
+  referenceId   String?
+  referenceType String?
+  description   String  @default("")
+
+  eventDate DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  @@index([userId, eventDate(sort: Desc)])
+  @@index([userId, eventType])
+  @@index([userId, bettingHouse])
+  @@map("financial_ledger")
+}
+
+enum LinkWebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// Webhook de solicitação de link — config por dono (ownerUserId null = global/admin)
+model LinkWebhookSettings {
+  id            String   @id @default(uuid())
+  enabled       Boolean  @default(false)
+  webhookUrl    String   @default("")
+  // AES-256-GCM encrypted (CryptoService). Empty string = no secret set.
+  webhookSecret String   @default("")
+  // Subscribed event types (see LINK_WEBHOOK_EVENTS). Replaces the old
+  // notifyOnApproved/notifyOnRejected booleans. Backfilled by migration.
+  events        String[] @default(["link_request.approved", "link_request.rejected"])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  ownerUserId   String?  @unique
+  owner         User?    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@map("link_webhook_settings")
+}
+
+model LinkWebhookDelivery {
+  id             String                    @id @default(uuid())
+  // Nullable: non-link events (affiliate_data.synced, deal.updated, ...) have
+  // no associated link request.
+  linkRequestId  String?
+  event          String
+  origin         String
+  idempotencyKey String                    @unique
+  payload        Json
+  status         LinkWebhookDeliveryStatus @default(PENDING)
+  httpStatus     Int?
+  responseBody   String?
+  errorMessage   String?
+  attempts       Int                       @default(0)
+  deliveredAt    DateTime?
+  createdAt      DateTime                  @default(now())
+  ownerUserId    String?
+  linkRequest    LinkRequest?              @relation(fields: [linkRequestId], references: [id], onDelete: SetNull)
+  owner          User?                     @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+
+  @@index([linkRequestId])
+  @@index([ownerUserId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([event, createdAt(sort: Desc)])
+  @@map("link_webhook_deliveries")
+}
+
+// ─── ENUMS: SUPPORT CHAT ────────────────────────────────────
+
+enum ConversationStatus {
+  WAITING
+  OPEN
+  WAITING_USER
+  CLOSED
+}
+
+enum MessageSenderRole {
+  AFFILIATE
+  AGENT
+}
+
+// ─── SUPPORT CHAT ───────────────────────────────────────────
+
+model SupportConversation {
+  id           String             @id @default(uuid())
+  affiliateId  String
+  affiliate    User               @relation("ConversationAffiliate", fields: [affiliateId], references: [id], onDelete: Restrict)
+  agentId      String?
+  agent        User?              @relation("ConversationAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  status       ConversationStatus @default(WAITING)
+  subject      String?
+  tags         String[]           @default([])
+  closedAt     DateTime?
+  closedByRole String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  messages    SupportMessage[]
+  assignments SupportConversationAssignment[]
+
+  @@index([affiliateId, status])
+  @@index([agentId, status])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("support_conversations")
+}
+
+model SupportMessage {
+  id                 String              @id @default(uuid())
+  conversationId     String
+  conversation       SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId           String
+  sender             User                @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
+  senderRole         MessageSenderRole
+  content            String              @db.Text
+  attachmentUrl      String?
+  attachmentMimeType String?
+  attachmentName     String?
+  attachmentSize     Int?
+  readAt             DateTime?
+  createdAt          DateTime            @default(now())
+  editedAt           DateTime?
+
+  @@index([conversationId, createdAt(sort: Asc)])
+  @@index([senderId])
+  @@map("support_messages")
+}
+
+model SupportConversationAssignment {
+  id             String              @id @default(uuid())
+  conversationId String
+  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  agentId        String
+  agent          User                @relation("AssignmentAgent", fields: [agentId], references: [id], onDelete: Restrict)
+  agentName      String
+  agentEmail     String
+  assignedAt     DateTime            @default(now())
+  releasedAt     DateTime?
+
+  @@index([conversationId])
+  @@index([agentId, assignedAt(sort: Desc)])
+  @@map("support_conversation_assignments")
+}
+
+model SupportAgentAvailability {
+  id             String    @id @default(uuid())
+  agentId        String    @unique
+  agent          User      @relation("AgentAvailability", fields: [agentId], references: [id], onDelete: Cascade)
+  isOnline       Boolean   @default(false)
+  lastAssignedAt DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@map("support_agent_availability")
+}
+
+// ─── LINK REQUEST / CPA AUTO-ASSIGNMENT ─────────────────────
+// Regra configurável por casa para solicitação/atribuição automática de links.
+// 1 linha por casa. Substitui CPA manual do líder + timeout de 24h.
+model HouseLinkRule {
+  id        String       @id @default(uuid())
+  houseSlug String       @unique
+  house     BettingHouse @relation(fields: [houseSlug], references: [slug])
+
+  // master toggles
+  requestEnabled    Boolean @default(true) // casa ativa p/ solicitação
+  autoAssignEnabled Boolean @default(true) // atribuição automática
+
+  // cálculo de CPA
+  ruleType            LinkRuleType @default(INVITER_DISCOUNT)
+  defaultCpa          Decimal      @default(0) @db.Decimal(10, 4) // usuário sem convidante
+  fallbackCpa         Decimal      @default(0) @db.Decimal(10, 4) // convidante sem CPA
+  inviterCpaThreshold Decimal?     @db.Decimal(10, 4) // limite p/ usar CPA do convidante
+  inviterCpaDiscount  Decimal      @default(5) @db.Decimal(10, 4)
+  defaultRevshare     Decimal      @default(0) @db.Decimal(10, 4)
+  // faixa (Esportiva): [{min,max,cpa}] (min/max null = sem piso/teto)
+  rangeReferenceHouse String?
+  rangeTiers          Json         @default("[]")
+
+  // toggles de validação
+  checkExistingLink         Boolean @default(true)
+  checkPendingRequest       Boolean @default(true)
+  useInviterCpa             Boolean @default(true)
+  applyFallbackNoInviterCpa Boolean @default(true)
+  applyDefaultNoInviter     Boolean @default(true)
+  blockOnRequiredFail       Boolean @default(true)
+  processOldRequests        Boolean @default(false)
+
+  // dependência genérica entre casas
+  requireActiveLinkInHouses Boolean  @default(false)
+  requiredHouseSlugs        String[] @default([])
+
+  blockMessage  String   @default("") @db.Text
+  updatedByName String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  linkRequests LinkRequest[]
+  changeLogs   HouseLinkRuleChangeLog[]
+
+  @@index([requestEnabled])
+  @@index([autoAssignEnabled])
+  @@map("house_link_rules")
+}
+
+// Auditoria de domínio das mudanças de regra (além do AuditLog middleware).
+model HouseLinkRuleChangeLog {
+  id              String         @id @default(uuid())
+  houseRuleId     String?
+  houseRule       HouseLinkRule? @relation(fields: [houseRuleId], references: [id], onDelete: SetNull)
+  houseSlug       String
+  adminName       String         @default("")
+  changeReason    String?        @db.Text // obrigatório p/ campos financeiros (app layer)
+  changes         Json           @default("{}") // { campo: { old, new } }
+  blockMessageOld String         @default("")
+  blockMessageNew String         @default("")
+  createdAt       DateTime       @default(now())
+
+  @@index([houseSlug, createdAt])
+  @@map("house_link_rule_change_logs")
+}
+
+// Log por solicitação processada (auditoria/suporte).
+model LinkAssignmentLog {
+  id             String                     @id @default(uuid())
+  linkRequestId  String?
+  userId         String
+  userName       String                     @default("")
+  houseSlug      String
+  inviterId      String?
+  inviterCpa     Decimal?                   @db.Decimal(10, 4)
+  assignedCpa    Decimal?                   @db.Decimal(10, 4)
+  ruleApplied    LinkAssignmentRuleApplied?
+  outcome        LinkAssignmentOutcome
+  origin         LinkAssignmentOrigin
+  togglesApplied String[]                   @default([])
+  requiredHouses String[]                   @default([])
+  missingHouses  String[]                   @default([])
+  statusBefore   String                     @default("")
+  statusAfter    String                     @default("")
+  adminName      String                     @default("")
+  reason         String?                    @db.Text
+  message        String                     @default("") @db.Text
+  createdAt      DateTime                   @default(now())
+
+  @@index([linkRequestId])
+  @@index([userId, houseSlug])
+  @@index([houseSlug, createdAt])
+  @@index([origin, createdAt])
+  @@index([outcome, createdAt])
+  @@map("link_assignment_logs")
+}
+
+// Execução de backfill + lock de concorrência por casa.
+model BackfillRun {
+  id              String            @id @default(uuid())
+  houseSlug       String
+  status          BackfillRunStatus @default(RUNNING)
+  dryRun          Boolean           @default(false)
+  adminName       String            @default("")
+  reason          String?           @db.Text
+  startedAt       DateTime          @default(now())
+  finishedAt      DateTime?
+  staleAt         DateTime?
+  failedReason    String?           @db.Text
+  evaluated       Int               @default(0)
+  processed       Int               @default(0)
+  skipped         Int               @default(0)
+  blocked         Int               @default(0)
+  waitingPool     Int               @default(0)
+  waitingSnapshot Int               @default(0)
+  errors          Int               @default(0)
+  message         String            @default("") @db.Text
+
+  @@index([houseSlug, status])
+  @@index([startedAt])
+  @@map("backfill_runs")
+}
+
+// ─── CPA PRIZE (Premiação por CPA) ──────────────────────────
+// Premiação recorrente por meta de CPA: a cada X CPAs → 1 prêmio.
+// Motor recalcula total acumulado vs prêmios já gerados (idempotente).
+
+enum CpaPrizeCountMode {
+  INDIVIDUAL // conta só o CPA próprio do usuário
+  NETWORK // conta só o CPA da downline (sem o cabeça)
+}
+
+// Sem PENDING: todo prêmio gerado pelo motor nasce AVAILABLE.
+// Admin atua apenas no fluxo de resgate (aprovar/rejeitar) ou cancelamento manual.
+enum CpaPrizeAwardStatus {
+  AVAILABLE
+  REDEMPTION_REQUESTED
+  PAID
+  CANCELLED
+  REJECTED
+}
+
+// Container lógico da regra. Edições não-estruturais mutam aqui; estruturais criam nova versão.
+model CpaPrizeRule {
+  id               String  @id @default(uuid())
+  name             String
+  description      String  @default("") @db.Text
+  active           Boolean @default(true)
+  archived         Boolean @default(false) // sem delete físico quando há histórico
+  // Aponta para a versão vigente (config corrente). Sem FK relacional para evitar ciclo.
+  currentVersionId String?
+
+  createdById String
+  createdBy   User   @relation("CpaPrizeRuleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions CpaPrizeRuleVersion[]
+  awards   CpaPrizeAward[]
+
+  @@index([active, archived])
+  @@map("cpa_prize_rules")
+}
+
+// Snapshot imutável de configuração = um ciclo de contagem.
+model CpaPrizeRuleVersion {
+  id      String       @id @default(uuid())
+  ruleId  String
+  rule    CpaPrizeRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  version Int
+
+  // null = conta CPA de todas as casas; slug = só dessa casa
+  bettingHouse    String?
+  bettingHouseRef BettingHouse? @relation(fields: [bettingHouse], references: [slug])
+
+  cpaPerPrize Int // meta
+  countMode   CpaPrizeCountMode
+  prizeType   PrizeType         @default(OTHER)
+  prizeValue  Decimal           @default(0) @db.Decimal(14, 2)
+  prizeLabel  String            @default("")
+  icon        String            @default("🎯")
+
+  startDate         DateTime  @db.Date
+  endDate           DateTime? @db.Date
+  // Corte DIÁRIO do início efetivo da contagem (AffiliateData.date é por dia).
+  effectiveFromDate DateTime  @db.Date
+  supersededAt      DateTime? // null = versão vigente
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress CpaPrizeProgress[]
+  awards   CpaPrizeAward[]
+
+  @@unique([ruleId, version])
+  @@index([supersededAt])
+  @@map("cpa_prize_rule_versions")
+}
+
+// Acumulador idempotente por (versão, usuário). Congela ciclo antigo.
+model CpaPrizeProgress {
+  id            String              @id @default(uuid())
+  ruleVersionId String
+  ruleVersion   CpaPrizeRuleVersion @relation(fields: [ruleVersionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalCpaCounted Int      @default(0)
+  awardsGenerated Int      @default(0) // = floor(total/meta) na última avaliação
+  lastEvaluatedAt DateTime @default(now())
+
+  ruleId String // denormalizado p/ consultas por regra
+
+  @@unique([ruleVersionId, userId])
+  @@index([ruleId])
+  @@map("cpa_prize_progress")
+}
+
+// Prêmio gerado (instância). Snapshots preservam histórico mesmo após edição da regra.
+model CpaPrizeAward {
+  id            String              @id @default(uuid())
+  ruleId        String
+  rule          CpaPrizeRule        @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  ruleVersionId String
+  ruleVersion   CpaPrizeRuleVersion @relation(fields: [ruleVersionId], references: [id], onDelete: Restrict)
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userName      String // denormalizado
+
+  bettingHouse String? // snapshot
+  countMode    CpaPrizeCountMode // snapshot
+  cpaThreshold Int // meta no momento da geração
+  cycleIndex   Int // 1º, 2º… prêmio dentro da versão
+
+  prizeType  PrizeType @default(OTHER) // snapshot
+  prizeValue Decimal   @default(0) @db.Decimal(14, 2) // snapshot
+  prizeLabel String    @default("") // snapshot
+
+  status          CpaPrizeAwardStatus @default(AVAILABLE)
+  balanceCredited Boolean             @default(false)
+
+  redemptionRequestedAt DateTime?
+  resolvedAt            DateTime?
+  resolvedById          String? // admin (denormalizado, sem FK)
+  rejectionReason       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ruleVersionId, userId, cycleIndex]) // trava dura anti-duplicação
+  @@index([status])
+  @@index([userId])
+  @@index([ruleId])
+  @@map("cpa_prize_awards")
+}
+
+// Auditoria de domínio imutável (mais rica que AuditLog HTTP-shaped).
+model CpaPrizeLog {
+  id            String  @id @default(uuid())
+  ruleId        String?
+  ruleVersionId String?
+  userId        String? // afetado
+  adminId       String? // ação manual
+
+  // CPA_COUNTED | PRIZE_GENERATED | REMAINDER | REDEMPTION_REQUESTED |
+  // REDEMPTION_APPROVED | REDEMPTION_REJECTED | AWARD_CANCELLED |
+  // RULE_CREATED | RULE_UPDATED | RULE_VERSIONED | RULE_TOGGLED |
+  // MANUAL_RECALC | MANUAL_ADJUSTMENT
+  event        String
+  bettingHouse String?
+
+  cpaBefore Int?
+  cpaAdded  Int?
+  cpaAfter  Int?
+
+  prizesGenerated     Int?
+  totalValueGenerated Decimal? @db.Decimal(14, 2)
+
+  note     String @default("") @db.Text
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([ruleId, createdAt])
+  @@index([event])
+  @@map("cpa_prize_logs")
+}
+
+// ─── WHATSAPP (Evolution GO) ────────────────────────────────
+// Envio automático de comprovantes de saque para um grupo WhatsApp.
+// Config e estado de runtime são tabelas singleton separadas.
+
+// Configuração editável pelo admin (1 linha singleton).
+model WhatsappSettings {
+  id                       String   @id @default(uuid())
+  instanceName             String   @default("")
+  // Token da instância retornado/definido no /instance/create — usado como
+  // header `apikey` nas chamadas instance-scoped. Nunca exposto ao frontend.
+  instanceToken            String?
+  selectedGroupId          String?
+  selectedGroupName        String?
+  messageTemplate          String   @default("") @db.Text
+  sendMedia                Boolean  @default(true)
+  delayMinSeconds          Int      @default(20)
+  delayMaxSeconds          Int      @default(90)
+  maxAttempts              Int      @default(5)
+  maxWaitConnectionMinutes Int      @default(1440)
+  failureCooldownSeconds   Int      @default(300)
+  enabled                  Boolean  @default(true)
+  // Alerta "planilha de links cheia": número WhatsApp de destino, limite de
+  // links livres que dispara o aviso, e flag de habilitado. O dedup ("uma vez")
+  // é feito em Redis, não aqui.
+  linkPoolAlertNumber      String?
+  linkPoolAlertThreshold   Int      @default(0)
+  linkPoolAlertEnabled     Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("whatsapp_settings")
+}
+
+// Estado de conexão / circuit breaker (1 linha singleton, atualizada pelo poll).
+model WhatsappConnectionState {
+  id                       String    @id @default(uuid())
+  status                   String    @default("close") // open | close | connecting | error
+  phoneNumber              String?
+  lastConnectedAt          DateTime?
+  lastDisconnectedAt       DateTime?
+  lastDisconnectNotifiedAt DateTime? // cooldown da notificação push
+  consecutiveFailures      Int       @default(0)
+  circuitOpenUntil         DateTime? // circuit breaker: envios pausados até aqui
+  lastErrorAt              DateTime?
+  updatedAt                DateTime  @updatedAt
+
+  @@map("whatsapp_connection_state")
+}
+
+// Histórico de cada comprovante enviado (ou tentativa). Colunas denormalizadas
+// (sem relação Prisma p/ User/Withdrawal) — guarda só o necessário p/ auditoria.
+model WhatsappSendLog {
+  id                     String             @id @default(uuid())
+  withdrawalId           String? // null p/ envios de teste; dedupe agora por (withdrawalId, groupId)
+  isTest                 Boolean            @default(false)
+  userId                 String?
+  userName               String             @default("")
+  userEmail              String?
+  amount                 Decimal?           @db.Decimal(14, 2)
+  groupId                String?
+  groupName              String?
+  message                String             @db.Text
+  status                 WhatsappSendStatus @default(PENDING)
+  // nº de tentativas REAIS de envio à Evolution (não inclui esperas por conexão)
+  attempts               Int                @default(0)
+  waitingConnectionSince DateTime?
+  pausedSince            DateTime?
+  lastError              String?            @db.Text
+  jobId                  String?
+  // Resposta resumida/auditoria — NUNCA salvar apikey/token/headers/QR
+  evolutionResponse      Json?
+  sentAt                 DateTime?
+  createdByAdminId       String? // só em ações manuais (retry/teste); null no automático
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  // Um comprovante é enviado para N grupos → 1 log por (saque, grupo). Substitui o
+  // antigo @unique(withdrawalId). NULL em withdrawalId (testes) é distinto no Postgres.
+  @@unique([withdrawalId, groupId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([userEmail])
+  @@map("whatsapp_send_logs")
+}
+
+// Grupos/comunidades de destino dos comprovantes. O MESMO comprovante é enviado
+// para todos. groupId @unique garante que não há repetição de grupo salvo.
+model WhatsappTargetGroup {
+  id         String   @id @default(uuid())
+  groupId    String   @unique // JID "...@g.us"
+  name       String   @default("")
+  pictureUrl String? // foto do grupo (cache p/ exibir no admin)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("whatsapp_target_groups")
+}
