@@ -82,7 +82,7 @@ const queryString = computed(() => {
   return params.toString()
 })
 
-const endpointUrl = computed(() => `https://api.vallexgroup.com.br/api/v1/affiliate-api/metrics?${queryString.value}`)
+const endpointUrl = computed(() => `https://api.mtafiliates.com.br/api/v1/affiliate-api/metrics?${queryString.value}`)
 const playgroundUrl = computed(() => `${apiBase}/v1/affiliate-api/metrics?${queryString.value}`)
 
 const curlExample = computed(() => `curl "${endpointUrl.value}" \\
@@ -120,12 +120,12 @@ const postmanCollection = computed(() => {
 
   return {
     info: {
-      name: 'Vallex Group — Affiliate API',
+      name: 'MT Affiliates — Affiliate API',
       description: 'Consulta de métricas da sua conta e da sua rede de afiliados. Configure a variável {{token}} com o token gerado no painel.',
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
     },
     variable: [
-      { key: 'baseUrl', value: 'https://api.vallexgroup.com.br/api/v1' },
+      { key: 'baseUrl', value: 'https://api.mtafiliates.com.br/api/v1' },
       { key: 'token', value: 'SEU_TOKEN' },
     ],
     item: [
@@ -367,23 +367,23 @@ def verify(headers, raw_body: bytes) -> bool:
 
 // Documento auto-contido para o parceiro colar na IA dele.
 // Usa ~~~ como cerca de código (sem crases) para não quebrar este template literal.
-const llmDoc = `# Integração Vallex Group — API de Afiliados + Webhooks (spec para IA)
+const llmDoc = `# Integração MT Affiliates — API de Afiliados + Webhooks (spec para IA)
 
 Você é um(a) engenheiro(a) de software. Sua tarefa: implementar a integração com a
-plataforma da Vallex Group a partir desta especificação. Entregue: (1) um cliente da
+plataforma da MT Affiliates a partir desta especificação. Entregue: (1) um cliente da
 API REST e (2) um receptor de webhooks que valida assinatura e responde HTTP 200.
 Pergunte só se algo for ambíguo; caso contrário, gere o código completo na linguagem
 que o usuário pedir (padrão: Node.js/Express).
 
 == VISÃO GERAL ==
-- A Vallex expõe uma API REST para você consultar suas métricas e solicitar links.
-- A Vallex também envia WEBHOOKS (HTTP POST) para uma URL sua quando eventos acontecem.
-- Os usuários do SEU painel não existem no sistema da Vallex. Ao pedir um link, você
-  envia o id do usuário no seu painel (externalUserId) e a Vallex cria um usuário
+- A MT Affiliates expõe uma API REST para você consultar suas métricas e solicitar links.
+- A MT Affiliates também envia WEBHOOKS (HTTP POST) para uma URL sua quando eventos acontecem.
+- Os usuários do SEU painel não existem no sistema da MT Affiliates. Ao pedir um link, você
+  envia o id do usuário no seu painel (externalUserId) e a MT Affiliates cria um usuário
   "externo" vinculado à sua conta.
 
 == AUTENTICAÇÃO (API REST) ==
-- Gere um token no painel Vallex (página "API"). Formato: vex_live_xxxxxxxx.
+- Gere um token no painel MT Affiliates (página "API"). Formato: vex_live_xxxxxxxx.
 - Envie em todas as chamadas REST o header:
   Authorization: Bearer SEU_TOKEN
 - O token só enxerga seus dados e a sua rede de afiliados.
@@ -398,7 +398,7 @@ que o usuário pedir (padrão: Node.js/Express).
   assinado de exemplo para a sua URL, sem registrar entrega real.
 
 == BASE URL ==
-- https://api.vallexgroup.com.br/api/v1
+- https://api.mtafiliates.com.br/api/v1
 
 == ENDPOINT 1 — MÉTRICAS ==
 GET /affiliate-api/metrics
@@ -409,7 +409,7 @@ Query params (todos opcionais):
 - groupBy: summary | day | house | affiliate
 Exemplo:
 ~~~
-curl "https://api.vallexgroup.com.br/api/v1/affiliate-api/metrics?startDate=2026-06-01&endDate=2026-06-15" \\
+curl "https://api.mtafiliates.com.br/api/v1/affiliate-api/metrics?startDate=2026-06-01&endDate=2026-06-15" \\
   -H "Authorization: Bearer SEU_TOKEN"
 ~~~
 Resposta (200, application/json) — formato:
@@ -453,7 +453,7 @@ Query params (opcionais):
 - bettingHouse: limita o saldo a uma casa (ex.: betano). Sem ele, retorna todas.
 Exemplo:
 ~~~
-curl "https://api.vallexgroup.com.br/api/v1/affiliate-api/users/id-do-usuario-no-SEU-painel" \\
+curl "https://api.mtafiliates.com.br/api/v1/affiliate-api/users/id-do-usuario-no-SEU-painel" \\
   -H "Authorization: Bearer SEU_TOKEN"
 ~~~
 Resposta (200) — exemplo:
@@ -589,8 +589,8 @@ Resposta (200) — exemplo (o saque atualizado):
 ~~~
 
 == WEBHOOKS — RECEBIMENTO ==
-1) No painel Vallex você cadastra a URL do seu endpoint e marca quais eventos quer receber.
-2) A Vallex faz POST JSON nessa URL a cada evento.
+1) No painel MT Affiliates você cadastra a URL do seu endpoint e marca quais eventos quer receber.
+2) A MT Affiliates faz POST JSON nessa URL a cada evento.
 3) Headers que enviamos em todo POST:
    - x-vallex-event:        nome do evento (ex.: affiliate_data.synced)
    - x-vallex-delivery-id:  id da entrega
@@ -743,7 +743,7 @@ function downloadPostmanCollection() {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = 'vallex-company-affiliate-api.postman_collection.json'
+  anchor.download = 'mt-affiliates-api.postman_collection.json'
   anchor.click()
   URL.revokeObjectURL(url)
   toast.add({ title: 'Collection baixada', description: 'No Postman: Import → File → selecione o arquivo.', color: 'success' })
@@ -990,7 +990,7 @@ const wdRequest = computed<{ method: string, path: string, body: Record<string, 
   }
 })
 
-const wdPublicUrl = computed(() => `https://api.vallexgroup.com.br/api/v1/affiliate-api${wdRequest.value.path}`)
+const wdPublicUrl = computed(() => `https://api.mtafiliates.com.br/api/v1/affiliate-api${wdRequest.value.path}`)
 const wdTestUrl = computed(() => `${apiBase}/v1/affiliate-api${wdRequest.value.path}`)
 
 const wdCurlExample = computed(() => {
@@ -1243,7 +1243,7 @@ onMounted(() => {
 
 // ── Per-endpoint canonical code examples (decoupled from the playground) ────
 function buildCode(method: string, path: string, body?: Record<string, unknown>) {
-  const url = `https://api.vallexgroup.com.br/api/v1/affiliate-api${path}`
+  const url = `https://api.mtafiliates.com.br/api/v1/affiliate-api${path}`
   const bodyStr = body ? JSON.stringify(body) : ''
   const curl = body
     ? `curl -X ${method} "${url}" \\\n  -H "Authorization: Bearer SEU_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '${bodyStr}'`
@@ -1378,8 +1378,8 @@ const metricsParams = queryParams.map(p => ({ ...p, in: 'query' as const }))
             </p>
             <div class="mt-4 flex flex-wrap items-center gap-2 rounded-lg p-3" style="background: var(--vex-bg); border: 1px solid var(--vex-border-subtle)">
               <span class="rounded px-2 py-1 text-[11px] font-black" style="background: var(--vex-surface-strong); color: var(--vex-text-muted)">BASE URL</span>
-              <code class="min-w-0 flex-1 break-all text-xs" style="color: var(--vex-text)">https://api.vallexgroup.com.br/api/v1/affiliate-api</code>
-              <UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" @click="copyText('https://api.vallexgroup.com.br/api/v1/affiliate-api', 'Base URL copiada')" />
+              <code class="min-w-0 flex-1 break-all text-xs" style="color: var(--vex-text)">https://api.mtafiliates.com.br/api/v1/affiliate-api</code>
+              <UButton icon="i-lucide-copy" size="xs" color="neutral" variant="ghost" @click="copyText('https://api.mtafiliates.com.br/api/v1/affiliate-api', 'Base URL copiada')" />
             </div>
             <div class="mt-3 grid gap-3 sm:grid-cols-2">
               <div class="rounded-lg p-3 text-xs" style="background: var(--vex-positive-soft-bg); color: var(--vex-positive-soft-text)">

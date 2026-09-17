@@ -7,7 +7,7 @@ definePageMeta({
 })
 
 useHead({
-  title: 'Rede | Vallex Group',
+  title: 'Rede | MT Affiliates',
 })
 
 const {

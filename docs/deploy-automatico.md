@@ -14,9 +14,9 @@ IP interno da VM:   COLOQUE_O_IP_INTERNO_DA_VM
 Dominios:
 
 ```text
-API:        https://api.vallexgroup.com.br
-Afiliados:  https://affiliates.vallexgroup.com.br
-Admin/Ops:  https://ops.vallexgroup.com.br
+API:        https://api.mtafiliates.com.br
+Afiliados:  https://affiliates.mtafiliates.com.br
+Admin/Ops:  https://ops.mtafiliates.com.br
 ```
 
 Processos PM2 usados no projeto novo:
@@ -80,7 +80,7 @@ nano admin/.env
 ```env
 NODE_ENV=production
 PORT=3001
-CORS_ORIGIN=https://affiliates.vallexgroup.com.br,https://ops.vallexgroup.com.br
+CORS_ORIGIN=https://affiliates.mtafiliates.com.br,https://ops.mtafiliates.com.br
 
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/vexxa_db?schema=public"
 REDIS_HOST=127.0.0.1
@@ -97,7 +97,7 @@ XFLOW_SECRET_KEY=sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 XFLOW_WITHDRAWAL_KEY=wk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 XFLOW_HTTP_TIMEOUT_MS=15000
 XFLOW_WEBHOOK_SECRET="COLOQUE_UM_SECRET_HEX_FORTE"
-APP_PUBLIC_URL=https://api.vallexgroup.com.br
+APP_PUBLIC_URL=https://api.mtafiliates.com.br
 XFLOW_POSTBACK_URL=
 
 VAPID_EMAIL=mailto:dev@automagroup.com
@@ -131,7 +131,7 @@ NUXT_PUBLIC_APP_ENV=production
 NUXT_PUBLIC_APP_NAME="Vallex Group - Affiliates"
 NUXT_PUBLIC_API_URL=/api
 NUXT_INTERNAL_API_URL=http://127.0.0.1:3001
-NUXT_PUBLIC_SOCKET_URL=https://api.vallexgroup.com.br
+NUXT_PUBLIC_SOCKET_URL=https://api.mtafiliates.com.br
 NUXT_API_SECRET=
 HOST=0.0.0.0
 PORT=3000
@@ -148,7 +148,7 @@ NUXT_PUBLIC_APP_ENV=production
 NUXT_PUBLIC_APP_NAME="Vallex Group - Admin"
 NUXT_PUBLIC_API_URL=/api
 NUXT_INTERNAL_API_URL=http://127.0.0.1:3001
-NUXT_PUBLIC_SOCKET_URL=https://api.vallexgroup.com.br
+NUXT_PUBLIC_SOCKET_URL=https://api.mtafiliates.com.br
 HOST=0.0.0.0
 PORT=4174
 NUXT_HOST=0.0.0.0
@@ -196,7 +196,7 @@ module.exports = {
         NITRO_PORT: '3000',
         NUXT_PUBLIC_API_URL: '/api',
         NUXT_INTERNAL_API_URL: 'http://127.0.0.1:3001',
-        NUXT_PUBLIC_SOCKET_URL: 'https://api.vallexgroup.com.br',
+        NUXT_PUBLIC_SOCKET_URL: 'https://api.mtafiliates.com.br',
       },
     },
     {
@@ -213,7 +213,7 @@ module.exports = {
         NITRO_PORT: '4174',
         NUXT_PUBLIC_API_URL: '/api',
         NUXT_INTERNAL_API_URL: 'http://127.0.0.1:3001',
-        NUXT_PUBLIC_SOCKET_URL: 'https://api.vallexgroup.com.br',
+        NUXT_PUBLIC_SOCKET_URL: 'https://api.mtafiliates.com.br',
       },
     },
   ],
@@ -327,9 +327,9 @@ ufw status
 Resumo dos proxies:
 
 ```text
-api.vallexgroup.com.br        -> http://IP_INTERNO_DA_VM:3001
-affiliates.vallexgroup.com.br -> http://IP_INTERNO_DA_VM:3000
-ops.vallexgroup.com.br        -> http://IP_INTERNO_DA_VM:4174
+api.mtafiliates.com.br        -> http://IP_INTERNO_DA_VM:3001
+affiliates.mtafiliates.com.br -> http://IP_INTERNO_DA_VM:3000
+ops.mtafiliates.com.br        -> http://IP_INTERNO_DA_VM:4174
 ```
 
 Teste no servidor mae:
@@ -345,7 +345,7 @@ systemctl reload nginx
 SSL:
 
 ```bash
-certbot --nginx -d api.vallexgroup.com.br -d affiliates.vallexgroup.com.br -d ops.vallexgroup.com.br
+certbot --nginx -d api.mtafiliates.com.br -d affiliates.mtafiliates.com.br -d ops.mtafiliates.com.br
 ```
 
 ## 9. Atualizar depois de novo push

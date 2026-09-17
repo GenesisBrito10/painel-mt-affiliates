@@ -47,7 +47,7 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'pt-BR' },
       charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
-      title: 'Vallex Group - Affiliates',
+      title: 'MT Affiliates',
       meta: [
         { name: 'description', content: 'Painel de gestão de afiliados e comissões' },
         { name: 'theme-color', content: '#39FF14' },

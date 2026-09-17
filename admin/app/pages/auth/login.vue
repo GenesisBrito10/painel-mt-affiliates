@@ -65,7 +65,7 @@ async function submit() {
           v-model="email"
           type="email"
           icon="i-lucide-mail"
-          placeholder="admin@vallexgroup.com.br"
+          placeholder="admin@mtafiliates.com.br"
           class="w-full"
           autocomplete="email"
           size="lg"

@@ -1,19 +1,19 @@
-// Vallex Push Notification Service Worker
+// MT Affiliates Push Notification Service Worker
 
 self.addEventListener('push', (event) => {
   let data = {}
   try {
     data = event.data?.json() ?? {}
   } catch {
-    data = { title: 'Vallex Group', body: event.data?.text() ?? '' }
+    data = { title: 'MT Affiliates', body: event.data?.text() ?? '' }
   }
 
-    const title = data.title || 'Vallex Group'
+    const title = data.title || 'MT Affiliates'
   const options = {
     body: data.body || 'Você tem uma nova notificação.',
     icon: data.icon || '/vallex-favicon-white.ico',
     badge: '/vallex-favicon-white.ico',
-    tag: data.tag || 'Vallex-notification',
+    tag: data.tag || 'mt-affiliates-notification',
     data: { url: data.url || '/notifications' },
   }
 

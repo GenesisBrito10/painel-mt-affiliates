@@ -41,7 +41,7 @@ describe('EarningsController (e2e)', () => {
     const jwtService = app.get(JwtService);
 
     const user = await prisma.user.findFirst({
-      where: { email: 'rolex2026@vallexgroup.com.br' },
+      where: { email: 'rolex2026@mtafiliates.com.br' },
       select: { id: true, email: true, role: true },
     });
 

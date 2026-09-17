@@ -114,7 +114,7 @@ export function useAffiliates() {
     () => user.value?.referralCode ?? profile.referralCode.value ?? '',
   )
   const referralLink = computed(
-    () => `https://affiliates.vallexgroup.com.br/auth/register?ref=${referralCode.value}`,
+    () => `https://affiliates.mtafiliates.com.br/auth/register?ref=${referralCode.value}`,
   )
 
   const copied = ref(false)

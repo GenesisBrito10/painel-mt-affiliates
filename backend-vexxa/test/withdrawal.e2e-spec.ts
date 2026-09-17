@@ -55,7 +55,7 @@ describe('WithdrawalController (e2e)', () => {
     const loginRes = await app.inject({
       method: 'POST',
       url: `${API}/auth/login`,
-      payload: { email: 'rolex2026@vallexgroup.com.br', password: '123123123' },
+      payload: { email: 'rolex2026@mtafiliates.com.br', password: '123123123' },
     });
     affiliateToken = loginRes.json().accessToken;
     if (!affiliateToken) throw new Error('Affiliate login failed');
@@ -220,7 +220,7 @@ describe('WithdrawalController (e2e)', () => {
       startOfDay.setHours(0, 0, 0, 0);
 
       const affiliateUser = await prisma.user.findFirst({
-        where: { email: 'rolex2026@vallexgroup.com.br' },
+        where: { email: 'rolex2026@mtafiliates.com.br' },
         select: { id: true },
       });
 

@@ -87,7 +87,7 @@ import { LoginModalModule } from './modules/login-modal/index.js';
         APP_PUBLIC_URL: Joi.string().uri().required(),
         AFFILIATE_PANEL_URL: Joi.string()
           .uri()
-          .default('https://affiliates.vallexgroup.com.br'),
+          .default('https://affiliates.mtafiliates.com.br'),
         RESEND_API_KEY: Joi.string().optional().allow(''),
         RESEND_FROM: Joi.string().optional().allow(''),
         SUPERBET_INACTIVITY_EMAIL_COPY_TO: Joi.string()

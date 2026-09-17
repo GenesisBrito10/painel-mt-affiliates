@@ -296,7 +296,7 @@ export function useAuth() {
 
   const needsEmailUpdate = computed(() => {
     const domain = user.value?.email.split('@')[1]?.toLowerCase()
-    return domain === 'vallexgroup.com.br'
+    return domain === 'mtafiliates.com.br'
   })
 
   const needsSuperbetAgreementRequest = computed(() =>

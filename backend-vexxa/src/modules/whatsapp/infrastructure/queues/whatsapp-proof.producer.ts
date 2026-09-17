@@ -204,7 +204,7 @@ export class WhatsappProofProducer {
       settings.messageTemplate,
       buildTemplateVars({
         userName: 'Teste Vallex Company',
-        userEmail: 'teste@vallexgroup.com.br',
+        userEmail: 'teste@mtafiliates.com.br',
         amount: 413.6,
         withdrawalId: 'TESTE',
         status: 'COMPLETED',

@@ -272,7 +272,7 @@ export class SuperbetInactivityService {
   private getEmailTemplate(name: string, warning: 1 | 2 | 3) {
     const panelUrl =
       process.env['AFFILIATE_PANEL_URL'] ||
-      'https://affiliates.vallexgroup.com.br';
+      'https://affiliates.mtafiliates.com.br';
     const logoUrl = `${panelUrl.replace(/\/+$/, '')}/vallex-logo-white.png`;
 
     if (warning === 1) {

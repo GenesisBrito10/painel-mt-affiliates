@@ -24,7 +24,7 @@ const features = [
 
     <!-- Giant faint watermark -->
     <div class="pointer-events-none fixed inset-0 flex items-center justify-end overflow-hidden" aria-hidden="true">
-      <span class="vex-auth-watermark">Vallex</span>
+      <span class="vex-auth-watermark">MT Affiliates</span>
     </div>
 
     <div class="relative z-10 mx-auto flex min-h-screen w-full max-w-[92rem] flex-col px-5 py-6 sm:px-8 sm:py-8 lg:px-14 lg:py-10">
@@ -69,7 +69,7 @@ const features = [
             </p>
             <h1 class="vex-title mt-3 text-[2.25rem] font-bold leading-[1.08] text-white sm:text-[2.75rem]">
               Bem-vindo à<br>
-              <span class="vex-auth-gradient-text">Vallex Group</span>
+              <span class="vex-auth-gradient-text">MT Affiliates</span>
             </h1>
             <p class="mt-5 max-w-md text-[15px] leading-relaxed" style="color: var(--vex-shell-dark-label)">
               A plataforma que conecta afiliados às melhores oportunidades do mercado.
@@ -136,7 +136,7 @@ const features = [
 
       <footer class="mt-6 shrink-0 text-center">
         <p class="text-[11px]" style="color: var(--vex-shell-dark-faint)">
-          &copy; {{ year }} Vallex Group. Todos os direitos reservados.
+          &copy; {{ year }} MT Affiliates. Todos os direitos reservados.
         </p>
       </footer>
     </div>

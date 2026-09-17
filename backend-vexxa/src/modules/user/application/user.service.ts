@@ -93,7 +93,7 @@ export interface AffiliateExportRow {
 export class UserService {
   private readonly logger = new Logger(UserService.name);
   private readonly blockedEmailDomains = new Set([
-    'vallexgroup.com.br',
+    'mtafiliates.com.br',
   ]);
 
   constructor(

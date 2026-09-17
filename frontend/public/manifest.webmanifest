@@ -1,7 +1,7 @@
 {
-  "name": "Vallex Group Affiliates",
-  "short_name": "Vallex",
-  "description": "Painel de afiliados Vallex Group",
+  "name": "MT Affiliates",
+  "short_name": "MT Affiliates",
+  "description": "Painel de afiliados MT Affiliates",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

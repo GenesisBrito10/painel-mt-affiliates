@@ -516,7 +516,7 @@ export class AuthService {
   private buildAffiliateResetUrl(rawToken: string): string {
     const baseUrl = (
       process.env['AFFILIATE_PANEL_URL'] ||
-      'https://affiliates.vallexgroup.com.br'
+      'https://affiliates.mtafiliates.com.br'
     ).replace(/\/+$/, '');
     return `${baseUrl}/auth/reset-password?token=${encodeURIComponent(rawToken)}`;
   }
@@ -533,7 +533,7 @@ export class AuthService {
     const safeResetUrl = this.escapeHtml(resetUrl);
     const panelUrl = (
       process.env['AFFILIATE_PANEL_URL'] ||
-      'https://affiliates.vallexgroup.com.br'
+      'https://affiliates.mtafiliates.com.br'
     ).replace(/\/+$/, '');
     const logoUrl = this.escapeHtml(`${panelUrl}/vallex-logo-white.png`);
 

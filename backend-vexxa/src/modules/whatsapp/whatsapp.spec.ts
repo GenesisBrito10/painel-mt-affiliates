@@ -50,7 +50,7 @@ describe('WhatsappReceiptUrlService', () => {
     get: (k: string) =>
       ({
         WHATSAPP_RECEIPT_SIGNING_SECRET: 'segredo-teste-super',
-        WHATSAPP_PUBLIC_API_URL: 'https://api.vallexgroup.com.br',
+        WHATSAPP_PUBLIC_API_URL: 'https://api.mtafiliates.com.br',
       })[k],
   };
   const svc = new WhatsappReceiptUrlService(config as never);

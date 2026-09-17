@@ -71,7 +71,7 @@ async function saveName() {
 
 function hasBlockedEmailDomain(email: string): boolean {
   const domain = email.split('@')[1]?.toLowerCase()
-  return domain === 'vallexgroup.com.br'
+  return domain === 'mtafiliates.com.br'
 }
 
 async function saveEmail() {
