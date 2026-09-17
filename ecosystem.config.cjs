@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'api-vallex-affiliates',
-      cwd: '/projetos/mjmcompany/backend-vexxa',
+      cwd: '/root/painel-mt-affiliates/backend-vexxa',
       script: 'dist/src/main.js',
       instances: 1,
       exec_mode: 'fork',
@@ -19,7 +19,7 @@ module.exports = {
     },
     {
       name: 'affiliates-vallex',
-      cwd: '/projetos/mjmcompany/frontend',
+      cwd: '/root/painel-mt-affiliates/frontend',
       script: '.output/server/index.mjs',
       instances: Number(process.env.WEB_CONCURRENCY || 2),
       exec_mode: 'cluster',
@@ -38,12 +38,12 @@ module.exports = {
         NUXT_PUBLIC_API_URL: '/api',
         NUXT_INTERNAL_API_URL: 'http://127.0.0.1:3001',
         NUXT_API_PROXY_TIMEOUT_MS: '15000',
-        NUXT_PUBLIC_SOCKET_URL: 'https://api.vallexgroup.com.br',
+        NUXT_PUBLIC_SOCKET_URL: 'https://api.mtafiliates.com.br',
       },
     },
     {
       name: 'admin-vallex',
-      cwd: '/projetos/mjmcompany/admin',
+      cwd: '/root/painel-mt-affiliates/admin',
       script: '.output/server/index.mjs',
       instances: Number(process.env.WEB_CONCURRENCY || 2),
       exec_mode: 'cluster',
@@ -62,12 +62,12 @@ module.exports = {
         NUXT_PUBLIC_API_URL: '/api',
         NUXT_INTERNAL_API_URL: 'http://127.0.0.1:3001',
         NUXT_API_PROXY_TIMEOUT_MS: '15000',
-        NUXT_PUBLIC_SOCKET_URL: 'https://api.vallexgroup.com.br',
+        NUXT_PUBLIC_SOCKET_URL: 'https://api.mtafiliates.com.br',
       },
     },
     {
       name: 'telegram-vallex-bot',
-      cwd: '/projetos/mjmcompany/telegram',
+      cwd: '/root/painel-mt-affiliates/telegram',
       script: 'dist/index.js',
       instances: 1,
       exec_mode: 'fork',
