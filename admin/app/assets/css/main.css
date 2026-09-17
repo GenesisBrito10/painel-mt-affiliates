@@ -2,67 +2,52 @@
 @import "@nuxt/ui";
 
 /* =====================================================================
-   Vallex Group — Admin design system tokens
-   Dark-first. Gold primary + violet accent on near-black surfaces.
+   MT Affiliates — Admin design system tokens
+   Dark-first. Neon green accents on black with white typography.
    ===================================================================== */
 
 @theme static {
   --font-sans: 'Public Sans', system-ui, -apple-system, sans-serif;
 
-  /* Primary palette — anchored on Vallex gold */
-  --color-gold-50:  #FFFBEB;
-  --color-gold-100: #FEF3C7;
-  --color-gold-200: #FDE68A;
-  --color-gold-300: #FCD34D;
-  --color-gold-400: #FBBF24;
-  --color-gold-500: #f59e0b;
-  --color-gold-600: #d97706;
-  --color-gold-700: #b45309;
-  --color-gold-800: #92400e;
-  --color-gold-900: #78350f;
-  --color-gold-950: #451a03;
-
-  /* Purple palette (accent) — anchored on #7C3AED */
-  --color-vpurple-50:  #F5F3FF;
-  --color-vpurple-100: #EDE9FE;
-  --color-vpurple-200: #DDD6FE;
-  --color-vpurple-300: #C4B5FD;
-  --color-vpurple-400: #A78BFA;
-  --color-vpurple-500: #8B5CF6;
-  --color-vpurple-600: #7C3AED;
-  --color-vpurple-700: #6D28D9;
-  --color-vpurple-800: #5B21B6;
-  --color-vpurple-900: #4C1D95;
-  --color-vpurple-950: #2E1065;
+  /* MT Affiliates green */
+  --color-mtgreen-50: #F0FFED;
+  --color-mtgreen-100: #D8FFD0;
+  --color-mtgreen-200: #B1FFA1;
+  --color-mtgreen-300: #83FF6B;
+  --color-mtgreen-400: #57FF3A;
+  --color-mtgreen-500: #39FF14;
+  --color-mtgreen-600: #2ED10F;
+  --color-mtgreen-700: #24A50D;
+  --color-mtgreen-800: #1E820F;
+  --color-mtgreen-900: #196B10;
+  --color-mtgreen-950: #073B05;
 }
 
 /* Brand variables — used directly via var(--color-...) */
 :root {
-  /* Primary brand */
-  --color-gold: #f59e0b;
-  --color-gold-bright: #fbbf24;     /* brighter pop for active fills + CTAs */
-  --color-gold-soft: rgba(245, 158, 11, 0.12);
-
-  /* Secondary brand: purple (logo "X") */
-  --color-purple: #7C3AED;
-  --color-purple-bright: #8B5CF6;
-  --color-purple-soft: rgba(124, 58, 237, 0.15);
-  --color-purple-border: rgba(124, 58, 237, 0.30);
-  --color-gold-border: rgba(245, 158, 11, 0.32);
+  /* Compatibility aliases used throughout existing admin components */
+  --color-gold: var(--color-mtgreen-500);
+  --color-gold-bright: var(--color-mtgreen-400);
+  --color-gold-soft: rgba(57, 255, 20, 0.12);
+  --color-purple: var(--color-mtgreen-500);
+  --color-purple-bright: var(--color-mtgreen-300);
+  --color-purple-soft: rgba(57, 255, 20, 0.12);
+  --color-purple-border: rgba(57, 255, 20, 0.30);
+  --color-gold-border: rgba(57, 255, 20, 0.32);
 
   /* Surfaces */
-  --color-bg: #0A0A0E;
-  --color-surface: #111115;
-  --color-surface-2: #15151B;
-  --color-surface-elevated: #1A1A20;
-  --color-surface-hover: #16161D;
-  --color-border: #252530;
-  --color-border-subtle: #1F1F27;
-  --color-border-strong: #2F2F3C;
+  --color-bg: #080A08;
+  --color-surface: #101410;
+  --color-surface-2: #141914;
+  --color-surface-elevated: #171D17;
+  --color-surface-hover: #1B221B;
+  --color-border: #273027;
+  --color-border-subtle: #1C241C;
+  --color-border-strong: #364236;
 
   --color-text: #FFFFFF;
-  --color-text-secondary: #A8A8BD;
-  --color-text-muted: #555568;
+  --color-text-secondary: #B8C2B8;
+  --color-text-muted: #788378;
 
   /* Legacy admin sidebar vars (kept for back-compat with any leftover usage) */
   --admin-sidebar: var(--color-surface);
@@ -71,27 +56,27 @@
   color-scheme: dark;
 }
 
-/* Force dark Vallex palette regardless of html.light/html.dark — design is dark-only. */
+/* Force the dark MT palette regardless of html.light/html.dark. */
 :root,
 .light,
 .dark {
   --ui-bg: var(--color-bg);
   --ui-bg-muted: var(--color-surface);
   --ui-bg-elevated: var(--color-surface-elevated);
-  --ui-bg-accented: #22222A;
+  --ui-bg-accented: #1B221B;
   --ui-bg-inverted: #FFFFFF;
 
   --ui-border: var(--color-border);
   --ui-border-muted: var(--color-border-subtle);
-  --ui-border-accented: #303040;
+  --ui-border-accented: #364236;
   --ui-border-inverted: #FFFFFF;
 
   --ui-text-dimmed: var(--color-text-muted);
   --ui-text-muted: var(--color-text-secondary);
-  --ui-text-toned: #C9C9D6;
+  --ui-text-toned: #D6DED6;
   --ui-text: var(--color-text);
   --ui-text-highlighted: var(--color-text);
-  --ui-text-inverted: #0A0A0E;
+  --ui-text-inverted: #080A08;
 }
 
 html,
@@ -325,14 +310,14 @@ body {
 }
 .btn-gold {
   background: var(--color-gold);
-  color: #FFFFFF;
+  color: #080A08;
   font-weight: 700;
-  box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.22);
 }
 .btn-gold:hover { background: var(--color-gold-bright); }
 
-.btn-purple { background: var(--color-purple); color: #fff; }
-.btn-purple:hover { background: #8B4BF5; }
+.btn-purple { background: var(--color-purple); color: #080A08; }
+.btn-purple:hover { background: var(--color-purple-bright); }
 
 .btn-ghost {
   background: var(--color-surface-elevated);
@@ -378,7 +363,7 @@ body {
 .badge-red   { background: rgba(239, 68, 68, 0.14); color: #F87171; }
 .badge-blue  { background: rgba(124, 58, 237, 0.15); color: #A78BFA; }
 .badge-gold  { background: var(--color-gold-soft); color: var(--color-gold); }
-.badge-purple { background: var(--color-purple-soft); color: #A78BFA; }
+.badge-purple { background: var(--color-purple-soft); color: var(--color-purple-bright); }
 .badge-gray  { background: rgba(255, 255, 255, 0.05); color: var(--color-text-secondary); }
 
 /* Status dots */
@@ -392,7 +377,7 @@ body {
 .dot-red   { background: #EF4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
 .dot-amber { background: #F59E0B; box-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
 .dot-blue  { background: #7C3AED; box-shadow: 0 0 8px rgba(124, 58, 237, 0.6); }
-.dot-gold  { background: var(--color-gold); box-shadow: 0 0 8px rgba(245, 158, 11, 0.8); }
+.dot-gold  { background: var(--color-gold); box-shadow: 0 0 8px rgba(57, 255, 20, 0.8); }
 
 /* Label kicker (uppercase mini caption) */
 .label-kicker {
@@ -454,7 +439,7 @@ body {
 .vex-select:focus,
 .vex-textarea:focus {
   border-color: var(--color-gold);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.14);
 }
 .vex-input::placeholder { color: var(--color-text-muted); }
 .vex-textarea { resize: vertical; min-height: 80px; }
@@ -479,19 +464,19 @@ body {
 .stripes {
   background-image: repeating-linear-gradient(
     135deg,
-    rgba(245, 158, 11, 0) 0px,
-    rgba(245, 158, 11, 0) 10px,
-    rgba(245, 158, 11, 0.10) 10px,
-    rgba(245, 158, 11, 0.10) 12px
+    rgba(57, 255, 20, 0) 0px,
+    rgba(57, 255, 20, 0) 10px,
+    rgba(57, 255, 20, 0.10) 10px,
+    rgba(57, 255, 20, 0.10) 12px
   );
 }
 .stripes-purple {
   background-image: repeating-linear-gradient(
     135deg,
-    rgba(124, 58, 237, 0) 0px,
-    rgba(124, 58, 237, 0) 10px,
-    rgba(124, 58, 237, 0.12) 10px,
-    rgba(124, 58, 237, 0.12) 12px
+    rgba(57, 255, 20, 0) 0px,
+    rgba(57, 255, 20, 0) 10px,
+    rgba(57, 255, 20, 0.12) 10px,
+    rgba(57, 255, 20, 0.12) 12px
   );
 }
 
@@ -560,20 +545,20 @@ body {
 
 .glow-gold {
   box-shadow:
-    0 0 28px rgba(245, 158, 11, 0.20),
-    0 1px 0 0 rgba(245, 158, 11, 0.24) inset;
+    0 0 28px rgba(57, 255, 20, 0.20),
+    0 1px 0 0 rgba(57, 255, 20, 0.24) inset;
 }
 
 .glow-gold-strong {
   box-shadow:
-    0 0 36px rgba(245, 158, 11, 0.34),
-    0 0 0 1px rgba(245, 158, 11, 0.38) inset;
+    0 0 36px rgba(57, 255, 20, 0.34),
+    0 0 0 1px rgba(57, 255, 20, 0.38) inset;
 }
 
 .glow-purple {
   box-shadow:
-    0 0 28px rgba(124, 58, 237, 0.16),
-    0 1px 0 0 rgba(124, 58, 237, 0.26) inset;
+    0 0 28px rgba(57, 255, 20, 0.16),
+    0 1px 0 0 rgba(57, 255, 20, 0.26) inset;
 }
 
 /* Decorative primary top-accent for KPI cards */
@@ -606,13 +591,13 @@ body {
 .brand-stripe {
   position: relative;
   background-image:
-    linear-gradient(135deg, transparent 0 60%, rgba(245, 158, 11, 0.07) 60% 61.5%, transparent 61.5% 72%, rgba(124, 58, 237, 0.06) 72% 73.5%, transparent 73.5% 100%);
+    linear-gradient(135deg, transparent 0 60%, rgba(57, 255, 20, 0.07) 60% 61.5%, transparent 61.5% 72%, rgba(255, 255, 255, 0.04) 72% 73.5%, transparent 73.5% 100%);
 }
 
 /* Aggressive diagonal stripe overlay — page hero pattern (matches brand backpack/car) */
 .brand-stripe-strong {
   background-image:
-    linear-gradient(115deg, transparent 0 45%, rgba(245, 158, 11, 0.10) 45% 47%, transparent 47% 52%, rgba(124, 58, 237, 0.10) 52% 54%, transparent 54% 60%, rgba(245, 158, 11, 0.06) 60% 61%, transparent 61% 100%);
+    linear-gradient(115deg, transparent 0 45%, rgba(57, 255, 20, 0.10) 45% 47%, transparent 47% 52%, rgba(255, 255, 255, 0.06) 52% 54%, transparent 54% 60%, rgba(57, 255, 20, 0.06) 60% 61%, transparent 61% 100%);
 }
 
 /* Page hero band — used at the top of major admin pages */
@@ -621,8 +606,8 @@ body {
   overflow: hidden;
   border-radius: 16px;
   background:
-    radial-gradient(1200px 240px at 100% -10%, rgba(124, 58, 237, 0.12), transparent 50%),
-    radial-gradient(800px 200px at 0% -20%, rgba(245, 158, 11, 0.10), transparent 50%),
+    radial-gradient(1200px 240px at 100% -10%, rgba(57, 255, 20, 0.12), transparent 50%),
+    radial-gradient(800px 200px at 0% -20%, rgba(255, 255, 255, 0.06), transparent 50%),
     var(--color-surface);
   border: 1px solid var(--color-border);
 }
@@ -632,7 +617,7 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(115deg, transparent 0 55%, rgba(245, 158, 11, 0.07) 55% 56%, transparent 56% 70%, rgba(124, 58, 237, 0.06) 70% 71%, transparent 71% 100%);
+    linear-gradient(115deg, transparent 0 55%, rgba(57, 255, 20, 0.07) 55% 56%, transparent 56% 70%, rgba(255, 255, 255, 0.04) 70% 71%, transparent 71% 100%);
   pointer-events: none;
 }
 
@@ -650,20 +635,20 @@ body {
 
 .vex-pill-gold {
   background: var(--color-gold);
-  color: #FFFFFF;
+  color: #080A08;
 }
 .vex-pill-gold:hover {
   background: var(--color-gold-bright);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.22);
 }
 
 .vex-pill-purple {
   background: var(--color-purple);
-  color: #FFFFFF;
+  color: #080A08;
 }
 .vex-pill-purple:hover {
   background: var(--color-purple-bright);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.22);
+  box-shadow: 0 0 0 3px rgba(57, 255, 20, 0.22);
 }
 
 /* Section divider with primary accent */

@@ -11,17 +11,8 @@ const props = withDefaults(defineProps<{
   compact: false
 })
 
-const iconSrc = computed(() =>
-  '/vallex-favicon.ico'
-)
-
-const colorMode = useColorMode()
-
-const logoSrc = computed(() =>
-  colorMode.value === 'dark'
-    ? '/vallex-logo-white.png'
-    : '/vallex-logo-dark.png'
-)
+const iconSrc = '/mt-affiliates-mark.png'
+const logoSrc = '/mt-affiliates-logo.png'
 
 const logoClass = computed(() => {
   if (props.size === 'lg') return 'h-28 max-w-[26rem]'
@@ -36,7 +27,7 @@ const logoClass = computed(() => {
     <img
       v-if="compact"
       :src="iconSrc"
-      alt="Vallex Group"
+      alt="MT Affiliates"
       class="size-8 shrink-0 object-contain"
       width="32"
       height="32"
@@ -44,10 +35,10 @@ const logoClass = computed(() => {
     <img
       v-else
       :src="logoSrc"
-      alt="Vallex Group"
+      alt="MT Affiliates"
       :class="['w-auto shrink-0 object-contain', logoClass]"
-      width="1332"
-      height="336"
+      width="2172"
+      height="724"
     >
     <p
       v-if="showSubtitle"

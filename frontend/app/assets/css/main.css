@@ -3,8 +3,8 @@
 @import "@nuxt/ui";
 
 /* ============================================
-   VALLEX GROUP — Brand-derived palette
-   Derived from logo: gold → violet gradient
+   MT AFFILIATES — Brand-derived palette
+   Derived from logo: neon green on black with white typography
    ============================================ */
 
 @theme {
@@ -14,6 +14,19 @@
   --font-money: "Space Grotesk", "Plus Jakarta Sans", system-ui, sans-serif;
   /* DM Mono: clean tabular font for tables & small labels */
   --font-mono: "DM Mono", "SF Mono", Menlo, monospace;
+
+  /* MT Affiliates green — used by Nuxt UI as the primary scale */
+  --color-mtgreen-50: #f0ffed;
+  --color-mtgreen-100: #d8ffd0;
+  --color-mtgreen-200: #b1ffa1;
+  --color-mtgreen-300: #83ff6b;
+  --color-mtgreen-400: #57ff3a;
+  --color-mtgreen-500: #39ff14;
+  --color-mtgreen-600: #2ed10f;
+  --color-mtgreen-700: #24a50d;
+  --color-mtgreen-800: #1e820f;
+  --color-mtgreen-900: #196b10;
+  --color-mtgreen-950: #073b05;
 
   /* ── Override Tailwind's default `gray` palette to neutral zinc ──
      Tailwind v4's default `gray` is cool (slightly blue). We force a
@@ -45,45 +58,45 @@
   --color-slate-950: #0b0d10;
 }
 
-/* ─── Light Mode ─── */
+/* ─── Default dark-first theme ─── */
 :root {
   --ui-radius: 0.5rem;
 
   /* Backgrounds */
-  --vex-bg: #f6f5f2;
-  --vex-bg-muted: #efede8;
-  --vex-surface: #ffffff;
-  --vex-surface-strong: #faf9f7;
-  --vex-surface-raised: #ffffff;
+  --vex-bg: #080a08;
+  --vex-bg-muted: #0c100c;
+  --vex-surface: #101410;
+  --vex-surface-strong: #141914;
+  --vex-surface-raised: #171d17;
 
   /* Borders */
-  --vex-border: #dedad2;
-  --vex-border-subtle: #e9e5de;
+  --vex-border: #273027;
+  --vex-border-subtle: #1c241c;
 
   /* Text */
-  --vex-text: #1c1917;
-  --vex-text-muted: #625b52;
-  --vex-text-faint: #91887d;
+  --vex-text: #ffffff;
+  --vex-text-muted: #b8c2b8;
+  --vex-text-faint: #788378;
 
-  /* Brand – Vallex gold from logo */
-  --vex-brand: #f59e0b;
-  --vex-brand-hover: #d97706;
-  --vex-brand-light: #fef3c7;
+  /* Brand — MT Affiliates green */
+  --vex-brand: #39ff14;
+  --vex-brand-hover: #2ed10f;
+  --vex-brand-light: rgba(57, 255, 20, 0.12);
   --vex-brand-muted: color-mix(in srgb, var(--vex-brand) 8%, transparent);
 
-  /* Accent – complementary amber/gold for CTAs */
-  --vex-accent: #7c3aed;
-  --vex-accent-light: #ede9fe;
+  /* Accent — white/silver from the logo */
+  --vex-accent: #ffffff;
+  --vex-accent-light: rgba(255, 255, 255, 0.1);
 
   /* Semantic */
-  --vex-positive: #059669;
-  --vex-positive-light: #d1fae5;
-  --vex-negative: #dc2626;
-  --vex-negative-light: #fee2e2;
-  --vex-warning: #d97706;
-  --vex-warning-light: #fef3c7;
-  --vex-info: #7c3aed;
-  --vex-info-light: #ede9fe;
+  --vex-positive: #39ff14;
+  --vex-positive-light: rgba(57, 255, 20, 0.1);
+  --vex-negative: #f87171;
+  --vex-negative-light: rgba(248, 113, 113, 0.1);
+  --vex-warning: #fbbf24;
+  --vex-warning-light: rgba(251, 191, 36, 0.1);
+  --vex-info: #39ff14;
+  --vex-info-light: rgba(57, 255, 20, 0.1);
 
   /* Shared shell accents */
   --vex-shell-hero-gradient: linear-gradient(
@@ -131,14 +144,14 @@
   --vex-negative-soft-text-strong: color-mix(in srgb, var(--vex-negative) 70%, white 30%);
 
   /* Shadows */
-  --vex-shadow-sm: 0 1px 3px 0 rgba(28, 25, 23, 0.06), 0 1px 2px -1px rgba(28, 25, 23, 0.06);
-  --vex-shadow: 0 4px 16px -4px rgba(28, 25, 23, 0.08), 0 2px 4px -2px rgba(28, 25, 23, 0.04);
-  --vex-shadow-lg: 0 12px 36px -8px rgba(28, 25, 23, 0.12);
+  --vex-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --vex-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.4);
+  --vex-shadow-lg: 0 12px 36px -8px rgba(0, 0, 0, 0.5);
 
   /* Sidebar */
-  --vex-sidebar-bg: #111315;
-  --vex-sidebar-text: #9ca3af;
-  --vex-sidebar-text-active: #f3f4f6;
+  --vex-sidebar-bg: #080a08;
+  --vex-sidebar-text: #b8c2b8;
+  --vex-sidebar-text-active: #ffffff;
   --vex-sidebar-hover: rgba(255, 255, 255, 0.04);
   --vex-sidebar-active: color-mix(in srgb, var(--vex-brand) 14%, transparent);
   --vex-sidebar-border: rgba(255, 255, 255, 0.05);
@@ -146,43 +159,43 @@
 
 /* ─── Dark Mode ─── */
 .dark {
-  --vex-bg: #0b0d10;
-  --vex-bg-muted: #111315;
-  --vex-surface: #16191d;
-  --vex-surface-strong: #1b1f24;
-  --vex-surface-raised: #20242a;
+  --vex-bg: #080a08;
+  --vex-bg-muted: #0c100c;
+  --vex-surface: #101410;
+  --vex-surface-strong: #141914;
+  --vex-surface-raised: #171d17;
 
-  --vex-border: #2a2f36;
-  --vex-border-subtle: #1f2329;
+  --vex-border: #273027;
+  --vex-border-subtle: #1c241c;
 
-  --vex-text: #e5e7eb;
-  --vex-text-muted: #9ca3af;
-  --vex-text-faint: #6b7280;
+  --vex-text: #ffffff;
+  --vex-text-muted: #b8c2b8;
+  --vex-text-faint: #788378;
 
-  --vex-brand: #fbbf24;
-  --vex-brand-hover: #fcd34d;
+  --vex-brand: #39ff14;
+  --vex-brand-hover: #2ed10f;
   --vex-brand-light: color-mix(in srgb, var(--vex-brand) 10%, transparent);
   --vex-brand-muted: color-mix(in srgb, var(--vex-brand) 6%, transparent);
 
-  --vex-accent: #a78bfa;
-  --vex-accent-light: rgba(167, 139, 250, 0.1);
+  --vex-accent: #ffffff;
+  --vex-accent-light: rgba(255, 255, 255, 0.1);
 
-  --vex-positive: #34d399;
-  --vex-positive-light: rgba(52, 211, 153, 0.1);
+  --vex-positive: #39ff14;
+  --vex-positive-light: rgba(57, 255, 20, 0.1);
   --vex-negative: #f87171;
   --vex-negative-light: rgba(248, 113, 113, 0.1);
   --vex-warning: #fbbf24;
   --vex-warning-light: rgba(251, 191, 36, 0.1);
-  --vex-info: #a78bfa;
-  --vex-info-light: rgba(167, 139, 250, 0.1);
+  --vex-info: #39ff14;
+  --vex-info-light: rgba(57, 255, 20, 0.1);
 
   --vex-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
   --vex-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.4);
   --vex-shadow-lg: 0 12px 36px -8px rgba(0, 0, 0, 0.5);
 
-  --vex-sidebar-bg: #111315;
-  --vex-sidebar-text: #9ca3af;
-  --vex-sidebar-text-active: #f3f4f6;
+  --vex-sidebar-bg: #080a08;
+  --vex-sidebar-text: #b8c2b8;
+  --vex-sidebar-text-active: #ffffff;
   --vex-sidebar-hover: rgba(255, 255, 255, 0.04);
   --vex-sidebar-active: color-mix(in srgb, var(--vex-brand) 14%, transparent);
   --vex-sidebar-border: rgba(255, 255, 255, 0.05);
@@ -210,7 +223,7 @@
   --ui-text-toned: var(--vex-text-muted);
   --ui-text-dimmed: var(--vex-text-faint);
   --ui-text-highlighted: var(--vex-text);
-  --ui-text-inverted: #ffffff;
+  --ui-text-inverted: #080a08;
 
   --ui-primary: var(--vex-brand);
   --ui-color-primary-50: color-mix(in srgb, var(--vex-brand) 8%, white);
@@ -497,7 +510,7 @@ body {
 
 .vex-shell-tab.is-active {
   background: var(--vex-brand);
-  color: #fff;
+  color: #080a08;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
@@ -518,7 +531,7 @@ body {
   box-shadow: var(--vex-shadow);
   overflow: hidden;
   position: relative;
-  /* Outer ring: subtle gold tint so the card belongs to the brand */
+  /* Outer ring: subtle green tint so the card belongs to the brand */
   outline: 1px solid color-mix(in srgb, var(--vex-brand) 18%, transparent);
   outline-offset: 0;
 }
@@ -530,8 +543,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  /* Light mode: warm off-white — not pure white, echoes the navy subtly */
-  background: #faf8f3;
+  background: var(--vex-surface);
   /* Mobile: top border matches the brand accent */
   border-top: 1px solid color-mix(in srgb, var(--vex-brand) 15%, transparent);
 }
@@ -1160,7 +1172,7 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   background: var(--vex-brand);
-  color: #fff;
+  color: #080a08;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
@@ -1305,7 +1317,7 @@ body {
   font-size: 0.625rem;
   font-weight: 700;
   background: var(--vex-brand);
-  color: #fff;
+  color: #080a08;
   flex-shrink: 0;
 }
 
@@ -1356,10 +1368,10 @@ body {
 
 /* ============================================
    AUTH MARKETING SHELL (login / register / etc.)
-   Gradient + watermark echo the logo's gold → violet sweep.
+   Gradient + watermark echo the logo's green → silver contrast.
    ============================================ */
 .vex-auth-gradient-text {
-  background: linear-gradient(90deg, #f59e0b 0%, #a78bfa 55%, #7c3aed 100%);
+  background: linear-gradient(90deg, #39ff14 0%, #8dff78 52%, #ffffff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

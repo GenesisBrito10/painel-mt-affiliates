@@ -14,20 +14,20 @@ interface ThemePalette {
 }
 
 const DEFAULTS: ThemePalette = {
-  brand: '#F59E0B',
-  accent: '#7C3AED',
-  info: '#7C3AED',
-  positive: '#22C55E',
+  brand: '#39FF14',
+  accent: '#39FF14',
+  info: '#39FF14',
+  positive: '#39FF14',
   negative: '#EF4444',
   warning: '#F59E0B',
-  sidebarBg: '#0A0A0E',
-  sidebarText: '#A8A8BD',
+  sidebarBg: '#080A08',
+  sidebarText: '#B8C2B8',
   sidebarActive: '#FFFFFF'
 }
 
 const FIELDS: Array<{ key: keyof ThemePalette, label: string, hint: string }> = [
   { key: 'brand', label: 'Brand', hint: 'Cor primária — botões, links, destaques principais.' },
-  { key: 'accent', label: 'Accent', hint: 'CTA secundário / violeta — chamadas para ação.' },
+  { key: 'accent', label: 'Accent', hint: 'CTA secundário — chamadas para ação.' },
   { key: 'info', label: 'Info', hint: 'Estados informativos — banners e badges neutros.' },
   { key: 'positive', label: 'Positivo', hint: 'Sucesso, ganhos, valores aprovados.' },
   { key: 'negative', label: 'Negativo', hint: 'Erros, cancelamentos, perdas.' },

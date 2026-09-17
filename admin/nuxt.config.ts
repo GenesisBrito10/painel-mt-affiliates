@@ -4,15 +4,31 @@ const env = ((globalThis as typeof globalThis & {
 }).process?.env ?? {})
 
 export default defineNuxtConfig({
-  ssr: false,
-
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui'
   ],
 
+  ssr: false,
+
   devtools: {
     enabled: process.env.NODE_ENV !== 'production'
+  },
+
+  app: {
+    head: {
+      htmlAttrs: { lang: 'pt-BR' },
+      title: 'Vallex Group - Admin',
+      meta: [
+        { name: 'theme-color', content: '#39FF14' }
+      ],
+      link: [
+        { key: 'icon', rel: 'icon', type: 'image/x-icon', href: '/vallex-favicon-white.ico' },
+        { key: 'shortcut-icon', rel: 'shortcut icon', type: 'image/x-icon', href: '/vallex-favicon-white.ico' },
+        { key: 'apple-touch-icon', rel: 'apple-touch-icon', type: 'image/png', sizes: '180x180', href: '/vallex-apple-touch-icon.png' },
+        { key: 'manifest', rel: 'manifest', href: '/manifest.webmanifest' }
+      ]
+    }
   },
 
   css: ['~/assets/css/main.css'],
@@ -29,24 +45,11 @@ export default defineNuxtConfig({
     port: Number(env.PORT || 3012)
   },
 
+  compatibilityDate: '2025-01-15',
+
   vite: {
     build: {
       target: ['es2020', 'safari15']
-    }
-  },
-
-  compatibilityDate: '2025-01-15',
-
-  app: {
-    head: {
-      htmlAttrs: { lang: 'pt-BR' },
-      title: 'Vallex Group - Admin',
-      link: [
-        { key: 'icon', rel: 'icon', type: 'image/x-icon', href: '/vallex-favicon-white.ico' },
-        { key: 'shortcut-icon', rel: 'shortcut icon', type: 'image/x-icon', href: '/vallex-favicon-white.ico' },
-        { key: 'apple-touch-icon', rel: 'apple-touch-icon', type: 'image/png', sizes: '180x180', href: '/vallex-apple-touch-icon.png' },
-        { key: 'manifest', rel: 'manifest', href: '/manifest.webmanifest' }
-      ]
     }
   },
 

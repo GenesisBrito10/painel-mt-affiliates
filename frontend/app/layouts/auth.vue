@@ -15,11 +15,11 @@ const features = [
        shadowing the admin-configured palette that plugins/theme.client.ts
        injects onto <html>. -->
   <div class="relative min-h-screen overflow-hidden" style="background: #0a0b0d">
-    <!-- Ambient glow — echoes the logo's gold → violet sweep -->
+    <!-- Ambient glow — echoes the MT green → silver contrast -->
     <div class="pointer-events-none fixed inset-0 overflow-hidden">
-      <div class="absolute -top-40 left-[4%] size-[34rem] rounded-full blur-[160px]" style="background: rgba(245, 158, 11, 0.16)" />
-      <div class="absolute top-1/4 right-[2%] size-[30rem] rounded-full blur-[160px]" style="background: rgba(168, 85, 247, 0.13)" />
-      <div class="absolute -bottom-52 left-[26%] h-[26rem] w-[40rem] rounded-full blur-[160px]" style="background: rgba(124, 58, 237, 0.08)" />
+      <div class="absolute -top-40 left-[4%] size-[34rem] rounded-full blur-[160px]" style="background: rgba(57, 255, 20, 0.16)" />
+      <div class="absolute top-1/4 right-[2%] size-[30rem] rounded-full blur-[160px]" style="background: rgba(57, 255, 20, 0.10)" />
+      <div class="absolute -bottom-52 left-[26%] h-[26rem] w-[40rem] rounded-full blur-[160px]" style="background: rgba(255, 255, 255, 0.05)" />
     </div>
 
     <!-- Giant faint watermark -->

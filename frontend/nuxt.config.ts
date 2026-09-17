@@ -13,6 +13,11 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/ui', '@pinia/nuxt'],
 
+  colorMode: {
+    preference: 'dark',
+    fallback: 'dark',
+  },
+
   css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
@@ -45,7 +50,7 @@ export default defineNuxtConfig({
       title: 'Vallex Group - Affiliates',
       meta: [
         { name: 'description', content: 'Painel de gestão de afiliados e comissões' },
-        { name: 'theme-color', content: '#f59e0b' },
+        { name: 'theme-color', content: '#39FF14' },
       ],
       link: [
         { key: 'icon', rel: 'icon', type: 'image/x-icon', href: '/vallex-favicon.ico' },

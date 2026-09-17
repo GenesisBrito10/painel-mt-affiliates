@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * Logotipo oficial — Vallex Group.
- * Usa GROUP branco em fundos escuros e GROUP preto em fundos claros.
+ * Logotipo oficial — MT Affiliates.
  */
 const props = defineProps<{
   hideText?: boolean
@@ -9,15 +8,8 @@ const props = defineProps<{
   size?: 'sm' | 'md' | 'lg' | 'sidebar' | 'mobile'
 }>()
 
-const iconSrc = computed(() => '/vallex-favicon.ico')
-const colorMode = useColorMode()
-
-const logoSrc = computed(() => {
-  if (props.variant === 'dark') return '/vallex-logo-white.png'
-  return colorMode.value === 'dark'
-    ? '/vallex-logo-white.png'
-    : '/vallex-logo-dark.png'
-})
+const iconSrc = '/mt-affiliates-mark.png'
+const logoSrc = '/mt-affiliates-logo.png'
 
 const logoClass = computed(() => {
   if (props.size === 'lg') return 'h-28 max-w-[26rem]'
@@ -33,7 +25,7 @@ const logoClass = computed(() => {
     <img
       v-if="hideText"
       :src="iconSrc"
-      alt="Vallex Group"
+      alt="MT Affiliates"
       class="size-8 shrink-0 object-contain"
       width="32"
       height="32"
@@ -41,10 +33,10 @@ const logoClass = computed(() => {
     <img
       v-else
       :src="logoSrc"
-      alt="Vallex Group"
+      alt="MT Affiliates"
       :class="['w-auto shrink-0 object-contain', logoClass]"
-      width="1332"
-      height="336"
+      width="2172"
+      height="724"
     >
   </div>
 </template>
