@@ -6,7 +6,7 @@ export PATH=/root/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin:$PATH
 export PNPM_HOME=/root/.local/share/pnpm
 
 ROOT="/painel-mt-affiliates"
-cd "$ROOT" || exit 1
+
 
 echo "Verificando origin/main..."
 
