@@ -273,7 +273,7 @@ export class SuperbetInactivityService {
     const panelUrl =
       process.env['AFFILIATE_PANEL_URL'] ||
       'https://affiliates.mtafiliates.com.br';
-    const logoUrl = `${panelUrl.replace(/\/+$/, '')}/vallex-logo-white.png`;
+    const logoUrl = `${panelUrl.replace(/\/+$/, '')}/mt-affiliates-logo.png`;
 
     if (warning === 1) {
       const subject = '⚠️ Você está inativo na Superbet';
@@ -388,7 +388,7 @@ ${input.consequence}
 
 ${input.action}${input.panelUrl ? `\n\nAcessar painel: ${input.panelUrl}` : ''}
 
-Equipe Vallex Company`;
+Equipe MT Affiliates`;
   }
 
   private buildWarningHtml(input: {
@@ -439,7 +439,7 @@ Equipe Vallex Company`;
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid #eef1f6;padding-top:18px;">
                   <tr>
                     <td align="left" style="vertical-align:bottom;">
-                      <img src="${logoUrl}" width="118" alt="Vallex Company" style="display:block;width:118px;max-width:118px;height:auto;border:0;outline:none;text-decoration:none;">
+                      <img src="${logoUrl}" width="118" alt="MT Affiliates" style="display:block;width:118px;max-width:118px;height:auto;border:0;outline:none;text-decoration:none;">
                     </td>
                   </tr>
                 </table>

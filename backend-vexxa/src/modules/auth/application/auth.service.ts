@@ -535,10 +535,10 @@ export class AuthService {
       process.env['AFFILIATE_PANEL_URL'] ||
       'https://affiliates.mtafiliates.com.br'
     ).replace(/\/+$/, '');
-    const logoUrl = this.escapeHtml(`${panelUrl}/vallex-logo-white.png`);
+    const logoUrl = this.escapeHtml(`${panelUrl}/mt-affiliates-logo.png`);
 
     return {
-      subject: 'Redefinição de senha - Vallex Company',
+      subject: 'Redefinição de senha - MT Affiliates',
       text: [
         'Olá,',
         '',
@@ -549,7 +549,7 @@ export class AuthService {
         '',
         'Se você não solicitou essa alteração, ignore este e-mail.',
         '',
-        'Equipe Vallex Company',
+        'Equipe MT Affiliates',
       ].join('\n'),
       html: `<!doctype html>
 <html>
@@ -560,7 +560,7 @@ export class AuthService {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
             <tr>
               <td style="background:#111827;padding:24px 28px;">
-                <p style="margin:0;color:#f5b301;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">Vallex Company</p>
+                <p style="margin:0;color:#f5b301;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">MT Affiliates</p>
                 <h1 style="margin:8px 0 0;color:#ffffff;font-size:24px;line-height:1.25;">Redefinição de senha</h1>
               </td>
             </tr>
@@ -582,7 +582,7 @@ export class AuthService {
             </tr>
             <tr>
               <td style="padding:18px 28px;border-top:1px solid #e5e7eb;">
-                <img src="${logoUrl}" width="118" alt="Vallex Company" style="display:block;width:118px;max-width:118px;height:auto;border:0;outline:none;text-decoration:none;">
+                <img src="${logoUrl}" width="118" alt="MT Affiliates" style="display:block;width:118px;max-width:118px;height:auto;border:0;outline:none;text-decoration:none;">
               </td>
             </tr>
           </table>

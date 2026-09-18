@@ -444,7 +444,7 @@ onMounted(() => { load(); loadHouses() })
 
 <template>
   <div class="admin-page space-y-5">
-    <!-- Filter card (vallex pattern) -->
+    <!-- Filter card (MT Affiliates pattern) -->
     <div
       class="card-vex mb-3.5 flex flex-wrap items-center gap-2.5"
       style="padding: 14px"

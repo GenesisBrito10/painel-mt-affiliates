@@ -3,7 +3,7 @@ const { state: maintenance } = useMaintenance()
 const colorMode = useColorMode()
 
 const faviconHref = computed(() =>
-  colorMode.value === 'dark' ? '/vallex-favicon.ico' : '/vallex-favicon.ico'
+  colorMode.value === 'dark' ? '/mt-affiliates-favicon.ico' : '/mt-affiliates-favicon.ico'
 )
 
 useHead({
@@ -25,14 +25,14 @@ useHead({
       rel: 'apple-touch-icon',
       type: 'image/png',
       sizes: '512x512',
-      href: '/vallex-apple-touch-icon.png',
+      href: '/mt-affiliates-apple-touch-icon.png',
     },
     {
       key: 'apple-touch-icon-precomposed',
       rel: 'apple-touch-icon-precomposed',
       type: 'image/png',
       sizes: '512x512',
-      href: '/vallex-apple-touch-icon.png',
+      href: '/mt-affiliates-apple-touch-icon.png',
     },
     {
       key: 'manifest',

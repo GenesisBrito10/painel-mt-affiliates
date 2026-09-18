@@ -68,7 +68,10 @@ export class ReceiptGeneratorService {
   ) {}
 
   private brandName(): string {
-    return this.config.get<string>('RECEIPT_BRAND_NAME', 'VALLEX') || 'VALLEX';
+    return (
+      this.config.get<string>('RECEIPT_BRAND_NAME', 'MT Affiliates') ||
+      'MT Affiliates'
+    );
   }
 
   private loadFonts(): NonNullable<typeof this.fonts> {

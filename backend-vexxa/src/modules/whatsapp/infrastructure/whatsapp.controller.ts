@@ -208,7 +208,7 @@ export class WhatsappController {
     }
     await this.evolution.sendText({
       number,
-      text: '✅ Teste de alerta Vallex Company: este número receberá os avisos de planilha de links cheia.',
+      text: '✅ Teste de alerta MT Affiliates: este número receberá os avisos de planilha de links cheia.',
       instanceToken: token,
     });
     return { valid: true, sent: true, number };

@@ -120,7 +120,7 @@ describe('SuperbetInactivityService', () => {
     );
     expect(mail.send.mock.calls[0][0].html).toContain('Aviso 1 de 3');
     expect(mail.send.mock.calls[0][0].html).toContain(
-      'https://affiliates.mtafiliates.com.br/vallex-logo-white.png',
+      'https://affiliates.mtafiliates.com.br/mt-affiliates-logo.png',
     );
   });
 
@@ -148,7 +148,7 @@ describe('SuperbetInactivityService', () => {
     expect(mail.send.mock.calls[0][0].text).toContain('2 dias consecutivos');
     expect(mail.send.mock.calls[0][0].html).toContain('Aviso 2 de 3');
     expect(mail.send.mock.calls[0][0].html).toContain(
-      'https://affiliates.mtafiliates.com.br/vallex-logo-white.png',
+      'https://affiliates.mtafiliates.com.br/mt-affiliates-logo.png',
     );
   });
 
@@ -196,14 +196,14 @@ describe('SuperbetInactivityService', () => {
         to: 'afiliado@vexxa.test',
         bcc: undefined,
         subject: '🔒 Sua conta foi bloqueada por inatividade',
-        text: expect.stringContaining('Equipe Vallex Company'),
+        text: expect.stringContaining('Equipe MT Affiliates'),
         html: expect.stringContaining('Aviso 3 de 3'),
       }),
     );
     expect(mail.send.mock.calls[0][0].text).not.toContain('Acessar painel:');
     expect(mail.send.mock.calls[0][0].html).not.toContain('Acessar painel');
     expect(mail.send.mock.calls[0][0].html).toContain(
-      'https://affiliates.mtafiliates.com.br/vallex-logo-white.png',
+      'https://affiliates.mtafiliates.com.br/mt-affiliates-logo.png',
     );
   });
 

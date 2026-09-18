@@ -49,7 +49,7 @@ async function submit() {
         class="text-sm"
         style="color: var(--color-text-secondary)"
       >
-        Acesso restrito a administradores da Vallex Group.
+        Acesso restrito a administradores da MT Affiliates.
       </p>
     </div>
 

@@ -203,7 +203,7 @@ export class WhatsappProofProducer {
     const message = renderTemplate(
       settings.messageTemplate,
       buildTemplateVars({
-        userName: 'Teste Vallex Company',
+        userName: 'Teste MT Affiliates',
         userEmail: 'teste@mtafiliates.com.br',
         amount: 413.6,
         withdrawalId: 'TESTE',
@@ -227,7 +227,7 @@ export class WhatsappProofProducer {
     const log = await this.prisma.whatsappSendLog.create({
       data: {
         isTest: true,
-        userName: 'Teste Vallex Company',
+        userName: 'Teste MT Affiliates',
         groupId: targetId,
         groupName: targetName,
         message,

@@ -2,11 +2,11 @@
 const colorMode = useColorMode()
 
 const faviconHref = computed(() =>
-  colorMode.value === 'dark' ? '/vallex-favicon-black.ico' : '/vallex-favicon-white.ico'
+  colorMode.value === 'dark' ? '/mt-affiliates-favicon.ico' : '/mt-affiliates-favicon.ico'
 )
 
 useHead({
-  title: 'Vallex Group - Admin',
+  title: 'MT Affiliates - Admin',
   link: [
     {
       key: 'icon',
@@ -25,7 +25,7 @@ useHead({
       rel: 'apple-touch-icon',
       type: 'image/png',
       sizes: '180x180',
-      href: '/vallex-apple-touch-icon.png'
+      href: '/mt-affiliates-apple-touch-icon.png'
     },
     {
       key: 'manifest',

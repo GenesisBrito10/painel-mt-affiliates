@@ -34,7 +34,7 @@
               class="italic"
               style="color: var(--color-gold)"
             >administrativo</span>
-            da Vallex Group.
+            da MT Affiliates.
           </h2>
           <p
             class="text-base leading-relaxed"

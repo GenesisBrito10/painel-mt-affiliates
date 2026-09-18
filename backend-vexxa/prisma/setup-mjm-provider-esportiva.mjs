@@ -13,7 +13,7 @@ import { createCipheriv, createHash, randomBytes, randomUUID } from 'node:crypto
 
 const APPLY = process.argv.includes('--apply');
 
-const ACCOUNT_NAME = 'Admin Vallex Company';
+const ACCOUNT_NAME = 'Admin MT Affiliates';
 const ACCOUNT_EMAIL = 'admin@vallexgroup.com.br';
 const ESPORTIVA_SLUG = 'esportivabet';
 const ESPORTIVA_BOOKMARKER = '02510c60-e702-479e-ada2-017e0b77f762';

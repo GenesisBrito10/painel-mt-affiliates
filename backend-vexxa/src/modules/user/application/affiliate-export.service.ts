@@ -151,7 +151,7 @@ export class AffiliateExportService {
     doc
       .fontSize(16)
       .font('Helvetica-Bold')
-      .text('Vallex Company - Afiliados', left, doc.page.margins.top);
+      .text('MT Affiliates - Afiliados', left, doc.page.margins.top);
 
     doc
       .fontSize(9)

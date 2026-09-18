@@ -18,14 +18,14 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'pt-BR' },
-      title: 'Vallex Group - Admin',
+      title: 'MT Affiliates - Admin',
       meta: [
         { name: 'theme-color', content: '#39FF14' }
       ],
       link: [
-        { key: 'icon', rel: 'icon', type: 'image/x-icon', href: '/vallex-favicon-white.ico' },
-        { key: 'shortcut-icon', rel: 'shortcut icon', type: 'image/x-icon', href: '/vallex-favicon-white.ico' },
-        { key: 'apple-touch-icon', rel: 'apple-touch-icon', type: 'image/png', sizes: '180x180', href: '/vallex-apple-touch-icon.png' },
+        { key: 'icon', rel: 'icon', type: 'image/x-icon', href: '/mt-affiliates-favicon.ico' },
+        { key: 'shortcut-icon', rel: 'shortcut icon', type: 'image/x-icon', href: '/mt-affiliates-favicon.ico' },
+        { key: 'apple-touch-icon', rel: 'apple-touch-icon', type: 'image/png', sizes: '180x180', href: '/mt-affiliates-apple-touch-icon.png' },
         { key: 'manifest', rel: 'manifest', href: '/manifest.webmanifest' }
       ]
     }

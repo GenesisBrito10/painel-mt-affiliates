@@ -240,7 +240,7 @@ export class NotificationService {
     await this.queue.add(PUSH_BATCH_JOB, {
       userIds: [userId],
       payload: {
-        title: '🔔 Vallex Group',
+        title: '🔔 MT Affiliates',
         body: 'Notificações push ativadas com sucesso!',
       },
     });

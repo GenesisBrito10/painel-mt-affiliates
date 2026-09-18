@@ -11,8 +11,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'MT Affiliates'
   const options = {
     body: data.body || 'Você tem uma nova notificação.',
-    icon: data.icon || '/vallex-favicon-white.ico',
-    badge: '/vallex-favicon-white.ico',
+    icon: data.icon || '/mt-affiliates-icon-192.png',
+    badge: '/mt-affiliates-icon-192.png',
     tag: data.tag || 'mt-affiliates-notification',
     data: { url: data.url || '/notifications' },
   }

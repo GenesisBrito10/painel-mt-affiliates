@@ -198,7 +198,7 @@ describe('AuthService', () => {
       });
       expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({
         to: 'user@vexxa.com',
-        subject: 'Redefinição de senha - Vallex Company',
+        subject: 'Redefinição de senha - MT Affiliates',
         text: expect.stringContaining('Redefinir senha:'),
         html: expect.stringContaining('Redefinir senha'),
       }));

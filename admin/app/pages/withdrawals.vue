@@ -1747,11 +1747,11 @@ onBeforeUnmount(() => {
       </template>
     </UModal>
 
-    <!-- Receipt modal — comprovante PIX gerado localmente (Vallex) -->
+    <!-- Receipt modal — comprovante PIX gerado localmente (MT Affiliates) -->
     <UModal
       v-model:open="showReceiptModal"
       title="Comprovante do saque"
-      description="Comprovante PIX gerado pela Vallex"
+      description="Comprovante PIX gerado pela MT Affiliates"
       :ui="{ content: 'max-w-2xl' }"
     >
       <template #body>

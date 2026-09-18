@@ -43,7 +43,7 @@ export type TemplateVariable = (typeof TEMPLATE_VARIABLES)[number];
 export const MAX_TEMPLATE_LENGTH = 4096;
 
 export const DEFAULT_TEMPLATE = [
-  '--------- Vallex Company ---------',
+  '--------- MT Affiliates ---------',
   'Usuário: {{userName}}',
   'Valor: {{amount}}',
   '--------------------------------',
