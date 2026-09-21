@@ -8,16 +8,15 @@ import type {
 import { ProviderFetchFailedException } from '../../domain/exceptions/sync.exceptions.js';
 import Decimal from 'decimal.js';
 
-// Smartico API shape — GET af2_media_report_af (group_by=afp1|afp2, DAY).
+// Smartico API shape — GET af2_media_report_af (group_by=afp|afp1..afp5, DAY).
 // A dimensão de agrupamento vira o campaignId no sistema:
 //  - Pinbet Diário  → group_by=afp1 (campo `afp1` de cada row)
 //  - Pinbet Mensal  → group_by=afp2 (campo `afp2` de cada row)
-// Como diário e mensal usam dimensões diferentes, os conjuntos NÃO se cruzam —
+//  - Bateu Bet      → group_by=afp  (link go.aff.bateu.bet.br/xxxx?afp=CODIGO)
+// Como cada casa usa uma dimensão diferente, os conjuntos NÃO se cruzam —
 // cada casa puxa só os seus dados (sem alias/casa-fonte).
 interface SmarticoRow {
   dt: string; // "2026-07-21T00:00:00.000Z"
-  afp1?: string; // código da campanha diário (ex.: VALLEX0001). "" = agregado.
-  afp2?: string; // código da campanha mensal. "" = agregado.
   visit_count: number; // cliques
   registration_count: number; // cadastros
   qftd_count: number; // CPA qualificado
@@ -27,6 +26,8 @@ interface SmarticoRow {
   net_pl: number; // resultado líquido
   volume: number; // volume apostado
   commissions_rev_share: number; // revshare bruto do provedor
+  // A coluna da dimensão agrupada (`afp`, `afp1`, …) vem junto no row e é lida
+  // dinamicamente — "" nessa coluna = linha agregada da conta.
 }
 
 interface SmarticoResponse {
@@ -38,10 +39,67 @@ const DEFAULT_HEADERS = {
   Accept: 'application/json, text/plain, */*',
 };
 
-type GroupByField = 'afp1' | 'afp2';
+// Host por conta: Pinbet fica em boapi7, Bateu Bet em boapi3. O valor vem do
+// ProviderAccount.apiBaseUrl; boapi7 permanece como fallback histórico.
+const DEFAULT_API_BASE = 'https://boapi7.smartico.ai/api';
+
+// Dimensões aceitas pelo relatório: `afp` (link com ?afp=CODIGO) e `afp1`..`afp5`.
+const GROUP_BY_PATTERN = /^afp[1-5]?$/u;
+
+// Só aceita host da Smartico: contas antigas (Pinbet) foram cadastradas com o
+// apiBaseUrl default do Betboard porque este extractor ignorava o campo, e
+// apontar o relatório para lá quebraria o sync.
+const normalizeApiBase = (value: string | undefined): string => {
+  const normalized = (value ?? '').trim().replace(/\/+$/u, '');
+  if (!normalized) return DEFAULT_API_BASE;
+  try {
+    const { hostname } = new URL(normalized);
+    if (hostname === 'smartico.ai' || hostname.endsWith('.smartico.ai')) {
+      return normalized;
+    }
+  } catch {
+    // URL inválida — cai no host padrão.
+  }
+  return DEFAULT_API_BASE;
+};
 
 const roundMoney = (value: number | null | undefined): number =>
   new Decimal(value ?? 0).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber();
+
+/**
+ * A Smartico não tem login: o que o orchestrator guarda no cache de token é
+ * esta sessão, que carrega token E host da conta. Guardar o host num campo da
+ * instância (padrão Betboard/OTG) não serve aqui — o extractor é singleton e o
+ * orchestrator só chama login() quando o cache expira, então uma conta acabaria
+ * lendo o host da outra.
+ */
+interface SmarticoSession {
+  token: string;
+  apiBase: string;
+}
+
+const encodeSession = (session: SmarticoSession): string =>
+  JSON.stringify(session);
+
+const decodeSession = (raw: string): SmarticoSession => {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      typeof (parsed as SmarticoSession).token === 'string'
+    ) {
+      const session = parsed as Partial<SmarticoSession>;
+      return {
+        token: session.token ?? '',
+        apiBase: normalizeApiBase(session.apiBase),
+      };
+    }
+  } catch {
+    // Token cru (chamada direta ao extractor) — mantém o host padrão.
+  }
+  return { token: raw, apiBase: DEFAULT_API_BASE };
+};
 
 @Injectable()
 export class SmarticoExtractor implements IProviderExtractor {
@@ -50,21 +108,25 @@ export class SmarticoExtractor implements IProviderExtractor {
   readonly supportsExplicitDates = true;
   private readonly logger = new Logger(SmarticoExtractor.name);
 
-  // Base fixa da Smartico (mesmo padrão do Betboard: URL hardcoded no extractor).
-  private static readonly API_BASE = 'https://boapi7.smartico.ai/api';
-
   constructor(private readonly config: ConfigService) {}
 
   /**
    * A Smartico autentica por token estático no header `authorization` (sem
-   * login/senha). Fonte de verdade do token: env `PINBET_SMARTICO_TOKEN` (.env,
-   * não hardcoded). Se o env não estiver setado, cai para o token guardado na
-   * ProviderAccount (`encryptedPassword`, entregue já decriptado em
-   * `credentials.password`).
+   * login/senha). Fonte de verdade: o token da própria ProviderAccount
+   * (`encryptedPassword`, entregue decriptado em `credentials.password`).
+   * `PINBET_SMARTICO_TOKEN` vale apenas para a conta legada do host padrão.
    */
   login(credentials: ProviderCredentials): Promise<string> {
-    const envToken = this.config.get<string>('PINBET_SMARTICO_TOKEN', '');
-    return Promise.resolve(envToken || credentials.password);
+    const apiBase = normalizeApiBase(credentials.apiBaseUrl);
+    // Host legado (Pinbet): o env continua ganhando, como sempre foi. Qualquer
+    // outra conta usa SÓ o token dela — mandar o token do Pinbet para outro
+    // host (Bateu Bet em boapi3) autenticaria na conta errada.
+    const token =
+      apiBase === DEFAULT_API_BASE
+        ? this.config.get<string>('PINBET_SMARTICO_TOKEN', '') ||
+          credentials.password
+        : credentials.password;
+    return Promise.resolve(encodeSession({ token, apiBase }));
   }
 
   /**
@@ -92,20 +154,19 @@ export class SmarticoExtractor implements IProviderExtractor {
     dateToExclusive: string,
     bookmarkerId: string,
   ): Promise<ExtractedReport[]> {
+    const session = decodeSession(accessToken);
     const requested = bookmarkerId
       .split(',')
       .map((value) => value.trim().toLowerCase())
-      .filter((value): value is GroupByField =>
-        ['afp1', 'afp2'].includes(value),
-      );
+      .filter((value) => GROUP_BY_PATTERN.test(value));
     const dimensions = [
-      ...new Set<GroupByField>(requested.length > 0 ? requested : ['afp1']),
+      ...new Set<string>(requested.length > 0 ? requested : ['afp1']),
     ];
     const reports: ExtractedReport[] = [];
     for (const groupBy of dimensions) {
       reports.push(
         ...(await this.fetchReportsForGroup(
-          accessToken,
+          session,
           dateFrom,
           dateToExclusive,
           groupBy,
@@ -116,17 +177,17 @@ export class SmarticoExtractor implements IProviderExtractor {
   }
 
   private async fetchReportsForGroup(
-    accessToken: string,
+    session: SmarticoSession,
     dateFrom: string,
     dateToExclusive: string,
-    groupBy: GroupByField,
+    groupBy: string,
   ): Promise<ExtractedReport[]> {
     const url =
-      `${SmarticoExtractor.API_BASE}/af2_media_report_af` +
+      `${session.apiBase}/af2_media_report_af` +
       `?aggregation_period=DAY&group_by=${groupBy}&date_from=${dateFrom}&date_to=${dateToExclusive}`;
 
     const res = await fetch(url, {
-      headers: { ...DEFAULT_HEADERS, Authorization: accessToken },
+      headers: { ...DEFAULT_HEADERS, Authorization: session.token },
     });
 
     // Smartico uses non-standard 2xx codes (observed: 291) for throttling.
@@ -145,8 +206,10 @@ export class SmarticoExtractor implements IProviderExtractor {
 
     const reports: ExtractedReport[] = [];
     for (const r of data) {
-      // campaignId = valor da dimensão agrupada (afp1 OU afp2).
-      const campaignId = (r[groupBy] ?? '').trim();
+      // campaignId = valor da dimensão agrupada (afp, afp1, afp2, …).
+      const rawCampaignId = (r as unknown as Record<string, unknown>)[groupBy];
+      const campaignId =
+        typeof rawCampaignId === 'string' ? rawCampaignId.trim() : '';
       // Valor vazio = linha agregada da conta (sem campanha) — ignorar.
       if (!campaignId) continue;
       const reportDate = typeof r.dt === 'string' ? r.dt.slice(0, 10) : '';
