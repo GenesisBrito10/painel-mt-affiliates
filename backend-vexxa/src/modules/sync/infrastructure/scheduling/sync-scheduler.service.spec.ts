@@ -112,3 +112,47 @@ describe('SyncSchedulerService provider-house eligibility', () => {
     );
   });
 });
+
+describe('SyncSchedulerService backfill por intervalo', () => {
+  const runSync = vi.fn().mockResolvedValue(undefined);
+  const getRecentDates = vi.fn(() => ['2026-09-20', '2026-09-21']);
+  const findAll = vi.fn();
+  const findByHouseSlug = vi.fn();
+
+  const makeService = () =>
+    new SyncSchedulerService(
+      { runSync, getRecentDates } as never,
+      {} as never,
+      { findAll, findByHouseSlug } as never,
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('repassa as datas explícitas ao orchestrator', async () => {
+    findByHouseSlug.mockResolvedValue([makeAccount(true, 'smartico')]);
+
+    await makeService().runHouse('sportingbet', 'admin', [
+      '2026-09-19',
+      '2026-09-20',
+    ]);
+
+    expect(runSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        houseSlug: 'sportingbet',
+        triggeredBy: 'admin',
+        dates: ['2026-09-19', '2026-09-20'],
+      }),
+    );
+  });
+
+  it('omite o campo dates quando nenhum intervalo é pedido', async () => {
+    findByHouseSlug.mockResolvedValue([makeAccount(true, 'smartico')]);
+
+    await makeService().runHouse('sportingbet', 'admin');
+
+    expect(runSync).toHaveBeenCalledTimes(1);
+    expect(runSync.mock.calls[0]?.[0]).not.toHaveProperty('dates');
+  });
+});
