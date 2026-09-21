@@ -334,29 +334,43 @@ const linkForm = reactive({
   userLink: '',
 })
 
-// Auto-preenche campaignId/affiliateId ao colar link estilo Superbet
-// (...C.ashx?siteid=X&c=Y → campaignId "X-Y", affiliateId "X"). Espelha
-// extractSuperbetCampaignId do backend. Só age em criação e sem sobrescrever
-// campos já digitados manualmente.
+// Auto-preenche campaignId/affiliateId ao colar o link de divulgação:
+//  - Superbet: ...C.ashx?siteid=X&c=Y → campaignId "X-Y", affiliateId "X"
+//    (espelha extractSuperbetCampaignId do backend).
+//  - Smartico / Bateu Bet: ...?afp=CODIGO → campaignId "CODIGO". É o mesmo
+//    valor que o sync lê em group_by=afp, então o link casa com o dado bruto.
+// Só age em criação e sem sobrescrever campos já digitados manualmente.
 function onUserLinkInput() {
   if (linkModalMode.value !== 'create') return
   const url = linkForm.userLink.trim()
   if (!url) return
-  let siteid = ''
-  let c = ''
+
+  let qs: URLSearchParams | null = null
   try {
-    const qs = new URL(url).searchParams
-    siteid = qs.get('siteid') || qs.get('siteId') || ''
-    c = qs.get('c') || ''
+    qs = new URL(url).searchParams
   } catch {
-    const m = url.match(/[?&]siteid=([^&]+)/i)
-    const mc = url.match(/[?&]c=([^&]+)/i)
-    siteid = m ? decodeURIComponent(m[1]) : ''
-    c = mc ? decodeURIComponent(mc[1]) : ''
+    qs = null
   }
-  if (!siteid || !c) return
-  if (!linkForm.campaignId) linkForm.campaignId = `${siteid}-${c}`
-  if (!linkForm.affiliateId) linkForm.affiliateId = siteid
+  const param = (name: string): string => {
+    const fromQs = qs?.get(name)
+    if (fromQs) return fromQs.trim()
+    const m = url.match(new RegExp(`[?&]${name}=([^&]+)`, 'i'))
+    return m?.[1] ? decodeURIComponent(m[1].replace(/\+/g, ' ')).trim() : ''
+  }
+
+  const siteid = param('siteid') || param('siteId')
+  const c = param('c')
+  if (siteid && c) {
+    if (!linkForm.campaignId) linkForm.campaignId = `${siteid}-${c}`
+    if (!linkForm.affiliateId) linkForm.affiliateId = siteid
+    return
+  }
+
+  // Smartico aceita afp e afp1..afp5 — a casa define qual dimensão o sync lê.
+  const afp = ['afp', 'afp1', 'afp2', 'afp3', 'afp4', 'afp5']
+    .map(name => param(name))
+    .find(value => value !== '')
+  if (afp && !linkForm.campaignId) linkForm.campaignId = afp
 }
 
 // Delete link state
@@ -2841,11 +2855,11 @@ onMounted(load)
         <!-- Link do usuário (URL de divulgação que o afiliado compartilha) -->
         <UFormField
           label="Link do usuário"
-          hint="URL que o afiliado divulga. Link Superbet (siteid + c) preenche Campaign/Affiliate ID automaticamente."
+          hint="URL que o afiliado divulga. Link Superbet (siteid + c) ou Bateu Bet (?afp=) preenche o Campaign ID automaticamente."
         >
           <UInput
             v-model="linkForm.userLink"
-            placeholder="https://wlsuperbet.adsrv.eacdn.com/C.ashx?siteid=32666&c=CAMPANHA"
+            placeholder="https://go.aff.bateu.bet.br/ibqecrdp?afp=CODIGO"
             @blur="onUserLinkInput"
             @paste="$nextTick(onUserLinkInput)"
           />
