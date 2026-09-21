@@ -8,12 +8,17 @@ import {
   HttpStatus,
   Logger,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { SyncSchedulerService } from './scheduling/sync-scheduler.service.js';
 import { SyncOrchestratorService } from '../application/sync-orchestrator.service.js';
 import { JwtAuthGuard, RolesGuard, Roles } from '../../auth/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  expandDateRange,
+  InvalidDateRangeError,
+} from '../domain/date-range.js';
 
 @Controller('admin/sync')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,14 +39,47 @@ export class SyncController {
    */
   @Post('trigger')
   @HttpCode(HttpStatus.ACCEPTED)
-  async trigger(@Body() body: { bettingHouseSlug?: string }) {
-    const { bettingHouseSlug } = body;
+  async trigger(
+    @Body()
+    body: {
+      bettingHouseSlug?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    },
+  ) {
+    const { bettingHouseSlug, dateFrom, dateTo } = body;
+
+    // Backfill: só com casa definida. Varrer o histórico de todas as casas de
+    // uma vez é pedido demais para os provedores.
+    let dates: string[] | undefined;
+    if (dateFrom || dateTo) {
+      if (!bettingHouseSlug) {
+        throw new BadRequestException(
+          'bettingHouseSlug é obrigatório ao informar dateFrom/dateTo',
+        );
+      }
+      if (!dateFrom || !dateTo) {
+        throw new BadRequestException('Informe dateFrom e dateTo juntos');
+      }
+      try {
+        dates = expandDateRange(dateFrom, dateTo);
+      } catch (err: unknown) {
+        throw new BadRequestException(
+          err instanceof InvalidDateRangeError
+            ? err.message
+            : 'Intervalo de datas inválido',
+        );
+      }
+    }
 
     if (bettingHouseSlug) {
-      this.logger.log(`Admin triggered sync for "${bettingHouseSlug}"`);
+      this.logger.log(
+        `Admin triggered sync for "${bettingHouseSlug}"` +
+          (dates ? ` (backfill ${dates[0]}..${dates[dates.length - 1]})` : ''),
+      );
       // Fire-and-forget: don't await so the HTTP response returns immediately
       this.scheduler
-        .runHouse(bettingHouseSlug, 'admin')
+        .runHouse(bettingHouseSlug, 'admin', dates)
         .catch((err: unknown) => {
           this.logger.error(
             `Admin sync error: ${err instanceof Error ? err.message : String(err)}`,
@@ -59,6 +97,9 @@ export class SyncController {
     return {
       accepted: true,
       target: bettingHouseSlug ?? 'all',
+      ...(dates
+        ? { days: dates.length, from: dates[0], to: dates[dates.length - 1] }
+        : {}),
       runningHouses: this.orchestrator.getRunningHouses(),
     };
   }

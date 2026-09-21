@@ -27,4 +27,12 @@ export interface SyncResultDto {
 export interface AdminTriggerSyncDto {
   /** If omitted, trigger all active houses */
   bettingHouseSlug?: string;
+  /**
+   * Backfill de um intervalo fechado (YYYY-MM-DD, ambos inclusivos). Exige
+   * bettingHouseSlug: varrer o histórico de todas as casas de uma vez é pedido
+   * demais para os provedores. Sem isso, provedores `current-day-only` (a
+   * Smartico, por exemplo) só trazem o dia corrente.
+   */
+  dateFrom?: string;
+  dateTo?: string;
 }

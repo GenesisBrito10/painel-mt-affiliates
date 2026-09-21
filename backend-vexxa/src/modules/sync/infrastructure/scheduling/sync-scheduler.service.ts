@@ -152,7 +152,15 @@ export class SyncSchedulerService {
   }
 
   /** Admin trigger for a single house */
-  async runHouse(houseSlug: string, triggeredBy: string): Promise<void> {
+  /**
+   * `dates` explícitas fazem o orchestrator honrar o intervalo mesmo em
+   * provedores `current-day-only` — é o caminho do backfill manual.
+   */
+  async runHouse(
+    houseSlug: string,
+    triggeredBy: string,
+    dates?: string[],
+  ): Promise<void> {
     const accounts = await this.providerAccountRepo.findByHouseSlug(houseSlug);
     for (const account of accounts) {
       const house = account.houses.find(
@@ -164,6 +172,7 @@ export class SyncSchedulerService {
         houseSlug,
         bookmarkerId: house.bookmarkerId,
         triggeredBy,
+        ...(dates ? { dates } : {}),
       });
     }
   }
