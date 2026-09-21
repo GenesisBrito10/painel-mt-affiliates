@@ -124,14 +124,21 @@ require('reflect-metadata');
 const { NestFactory } = require('@nestjs/core');
 const { ConfigModule } = require('@nestjs/config');
 const { Module } = require('@nestjs/common');
+const { SharedModule } = require(path.join(ROOT, 'dist/src/modules/shared/shared.module.js'));
 const { SyncModule } = require(path.join(ROOT, 'dist/src/modules/sync/sync.module.js'));
 const { SyncSchedulerService } = require(path.join(ROOT, 'dist/src/modules/sync/infrastructure/scheduling/sync-scheduler.service.js'));
 
 // .mjs não tem sintaxe de decorator — @Module é só uma função, aplicada à mão.
 class BackfillModule {}
-Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), SyncModule] })(
-  BackfillModule,
-);
+// SharedModule é @Global e fornece o CryptoService de que o ProviderAccountModule
+// depende para decriptar o token da conta (o Redis dele é lazyConnect).
+Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    SharedModule,
+    SyncModule,
+  ],
+})(BackfillModule);
 
 console.log('\nSubindo contexto Nest (sem cron)...\n');
 const app = await NestFactory.createApplicationContext(BackfillModule, {
