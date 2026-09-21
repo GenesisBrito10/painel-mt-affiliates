@@ -190,3 +190,118 @@ describe('SmarticoExtractor Pinbet metrics', () => {
     ]);
   });
 });
+
+describe('SmarticoExtractor multi-conta (Pinbet boapi7 / Bateu Bet boapi3)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const okFetch = (data: unknown[] = []) =>
+    vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ data }),
+    });
+
+  it('usa o token da conta e o host da conta, não o env legado', async () => {
+    const fetchMock = okFetch();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const config = {
+      get: vi.fn().mockReturnValue('token-legado-pinbet'),
+    } as unknown as ConfigService;
+    const extractor = new SmarticoExtractor(config);
+
+    const session = await extractor.login({
+      email: 'bateubet',
+      password: 'token-bateubet',
+      apiBaseUrl: 'https://boapi3.smartico.ai/api/',
+    });
+    await extractor.fetchReports(session, '2026-09-20', 'afp');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('https://boapi3.smartico.ai/api/af2_media_report_af');
+    expect(url).toContain('group_by=afp');
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      'token-bateubet',
+    );
+  });
+
+  it('cai no PINBET_SMARTICO_TOKEN e no host padrão quando a conta não traz token/URL', async () => {
+    const fetchMock = okFetch();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const config = {
+      get: vi.fn().mockReturnValue('token-legado-pinbet'),
+    } as unknown as ConfigService;
+    const extractor = new SmarticoExtractor(config);
+
+    const session = await extractor.login({
+      email: 'pinbet',
+      password: '',
+      apiBaseUrl: '',
+    });
+    await extractor.fetchReports(session, '2026-09-20', 'afp1');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('https://boapi7.smartico.ai/api/');
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      'token-legado-pinbet',
+    );
+  });
+
+  it('ignora apiBaseUrl que não é da Smartico (contas antigas com URL do Betboard)', async () => {
+    const fetchMock = okFetch();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const config = {
+      get: vi.fn().mockReturnValue('token-legado-pinbet'),
+    } as unknown as ConfigService;
+    const extractor = new SmarticoExtractor(config);
+
+    const session = await extractor.login({
+      email: 'pinbet',
+      password: 'token-da-conta',
+      apiBaseUrl: 'https://api-affiliates.mgaffiliates.site/api',
+    });
+    await extractor.fetchReports(session, '2026-09-20', 'afp1');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('https://boapi7.smartico.ai/api/');
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      'token-legado-pinbet',
+    );
+  });
+
+  it('extrai campanhas da dimensão `afp` e remove espaços do código', async () => {
+    vi.stubGlobal(
+      'fetch',
+      okFetch([
+        {
+          dt: '2026-09-20T00:00:00.000Z',
+          afp: 'Tonny-aviator ',
+          visit_count: 35,
+          registration_count: 3,
+          qftd_count: 1,
+          ftd_count: 1,
+          deposit_total: 524,
+          withdrawal_total: 1270,
+          net_pl: -566.0750045776367,
+          volume: 400.5,
+          commissions_rev_share: -169.82,
+        },
+        { dt: '2026-09-20T00:00:00.000Z', afp: '', qftd_count: 9 },
+      ]),
+    );
+
+    const extractor = new SmarticoExtractor(new ConfigService());
+    const reports = await extractor.fetchReports('token', '2026-09-20', 'afp');
+
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      campaignId: 'Tonny-aviator',
+      clicks: 35,
+      qftd: 1,
+      deposit: 524,
+      netPl: -566.08,
+    });
+  });
+});
