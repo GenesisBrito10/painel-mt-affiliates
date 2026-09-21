@@ -2839,17 +2839,37 @@ onMounted(load)
         </UFormField>
         <div
           v-else
-          class="rounded-lg border border-muted p-3"
+          class="rounded-lg border border-muted p-3 grid grid-cols-2 gap-3"
         >
-          <p class="text-xs text-muted">
-            Casa
-          </p>
-          <p class="font-bold">
-            {{ houseName(linkForm.bettingHouse) }}
-          </p>
-          <p class="text-xs text-muted mt-0.5">
-            {{ linkForm.bettingHouse }}
-          </p>
+          <div class="min-w-0">
+            <p class="text-xs text-muted">
+              Casa
+            </p>
+            <p class="font-bold truncate">
+              {{ houseName(linkForm.bettingHouse) }}
+            </p>
+            <p class="text-xs text-muted mt-0.5 truncate">
+              {{ linkForm.bettingHouse }}
+            </p>
+          </div>
+          <!-- Campaign ID é a chave que casa o link com o dado bruto do sync,
+               então não dá para editar depois de criado — mas precisa estar
+               visível aqui, senão não há como saber a que campanha o link se
+               refere. -->
+          <div class="min-w-0">
+            <p class="text-xs text-muted">
+              Campaign ID
+            </p>
+            <p
+              class="font-bold truncate"
+              :title="linkForm.campaignId"
+            >
+              {{ linkForm.campaignId || '—' }}
+            </p>
+            <p class="text-xs text-muted mt-0.5">
+              não editável
+            </p>
+          </div>
         </div>
 
         <!-- Link do usuário (URL de divulgação que o afiliado compartilha) -->
