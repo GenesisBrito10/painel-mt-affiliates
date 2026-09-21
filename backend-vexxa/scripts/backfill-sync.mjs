@@ -122,7 +122,8 @@ if (!APPLY) {
 // ── Execução via Nest ────────────────────────────────────────────────────────
 require('reflect-metadata');
 const { NestFactory } = require('@nestjs/core');
-const { ConfigModule } = require('@nestjs/config');
+const { ConfigModule, ConfigService } = require('@nestjs/config');
+const { BullModule } = require('@nestjs/bullmq');
 const { Module } = require('@nestjs/common');
 const { SharedModule } = require(path.join(ROOT, 'dist/src/modules/shared/shared.module.js'));
 const { SyncModule } = require(path.join(ROOT, 'dist/src/modules/sync/sync.module.js'));
@@ -132,9 +133,23 @@ const { SyncSchedulerService } = require(path.join(ROOT, 'dist/src/modules/sync/
 class BackfillModule {}
 // SharedModule é @Global e fornece o CryptoService de que o ProviderAccountModule
 // depende para decriptar o token da conta (o Redis dele é lazyConnect).
+// BullModule.forRoot é obrigatório: o LinkWebhookModule só faz registerQueue,
+// e sem a conexão da raiz o worker do BullMQ nem constrói
+// ("Worker requires a connection"). Mesma config do AppModule.
 Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config) => ({
+        connection: {
+          host: config.get('REDIS_HOST', 'localhost'),
+          port: config.get('REDIS_PORT', 6379),
+          password: config.get('REDIS_PASSWORD') || undefined,
+          db: config.get('REDIS_DB', 0),
+        },
+      }),
+    }),
     SharedModule,
     SyncModule,
   ],
