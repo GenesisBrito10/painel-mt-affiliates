@@ -90,6 +90,7 @@ import type {
 } from './dto/link-request.dto.js';
 import type { JwtPayload } from '../../auth/domain/auth.types.js';
 import { REAL_ACTIVE_LINK_WHERE } from './link-active.util.js';
+import { extractCampaignIdFromUrl } from '../domain/campaign-id.js';
 
 /**
  * Prisma user select shared by every query whose row is mapped through
@@ -1675,22 +1676,10 @@ export class LinkRequestService {
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
-   * Extracts campaignId from a tracking URL.
-   * Superbet pattern: siteid + c query params → "{siteid}-{c}"
-   * Example: https://...?siteid=32666&c=MJM324 → "32666-MJM324"
+   * Resolve o campaignId da casa: casas em MANUAL_CAMPAIGN_ID_HOUSES exigem o
+   * valor digitado; as demais extraem da URL (ver extractCampaignIdFromUrl) e
+   * só caem no manual se a URL não trouxer padrão conhecido.
    */
-  private extractCampaignIdFromUrl(url: string): string | null {
-    try {
-      const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
-      const siteid = parsed.searchParams.get('siteid');
-      const c = parsed.searchParams.get('c');
-      if (siteid && c) return `${siteid}-${c}`;
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
   private extractCampaignIdForHouse(
     house: string,
     url: string,
@@ -1699,7 +1688,7 @@ export class LinkRequestService {
     if ((MANUAL_CAMPAIGN_ID_HOUSES as readonly string[]).includes(house)) {
       return manualId ?? null; // null → link will be created with empty campaignId
     }
-    return this.extractCampaignIdFromUrl(url) ?? manualId ?? null;
+    return extractCampaignIdFromUrl(url) ?? manualId ?? null;
   }
 
   /**
